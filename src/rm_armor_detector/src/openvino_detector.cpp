@@ -24,7 +24,7 @@ void OpenvinoDetector::set_onnx_model(const std::string &model_path, const std::
     std::cout << "Openvino onnx model loaded successfully!" << std::endl;
 }
 
-void OpenvinoDetector::infer(const cv::Mat &input)
+void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
 {
     armors_.clear();
     // -------- Step 5. Prepare input --------
@@ -73,25 +73,29 @@ void OpenvinoDetector::infer(const cv::Mat &input)
                 int class_number_id;
                 int class_color_id;
                 std::cout << "class_id_point.x: " << class_id_point.x << std::endl;
-                if(class_id_point.x < 6)
+                if(class_id_point.x < 6 && detect_color == 0)
                 {
                     class_number_id = class_id_point.x + 1;
                     class_color_id = 0;
                 }
-                else if(class_id_point.x < 12 || class_id_point.x >= 7)
+                else if(class_id_point.x < 12 || class_id_point.x >= 7 && detect_color == 1)
                 {
                     class_number_id = class_id_point.x - 5;
                     class_color_id = 1;
                 }
-                else if(class_id_point.x == 6)
+                else if(class_id_point.x == 6 && detect_color == 0)
                 {
                     class_number_id = 0;
                     class_color_id = 0;
                 }
-                else if(class_id_point.x == 12)
+                else if(class_id_point.x == 12 && detect_color == 1)
                 {
                     class_number_id = 0;
                     class_color_id = 1;
+                }
+                else
+                {
+                    continue;
                 }
                 float class_number_score = maxClassScore;
                 float class_color_score = maxClassScore;
@@ -143,6 +147,16 @@ void OpenvinoDetector::infer(const cv::Mat &input)
                 int class_number = number_id_point.x;
                 float class_number_score = maxNumberScore;
                 int class_color = color_id_point.x;
+                if(class_color == 0 && detect_color == 0) // blue
+                {
+                }
+                else if(class_color == 1 && detect_color == 1) // red
+                {
+                }
+                else
+                {
+                    continue;
+                }
                 float class_color_score = maxColorScore;
                 float x1 = xyxyxyxy_boxes_mat.at<float>(0,0) * x_scale;
                 float y1 = xyxyxyxy_boxes_mat.at<float>(0,1) * y_scale;

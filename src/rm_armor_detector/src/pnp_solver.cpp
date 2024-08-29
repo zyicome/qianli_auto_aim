@@ -51,7 +51,7 @@ void PnpSolver::solve_pnp(const std::vector<cv::Point2f> &points, const cv::Mat 
     }
 }
 
-double PnpSolver::get_distance_armor_center_to_image_center(cv::Point2f &armor_center)
+double PnpSolver::get_distance_armor_center_to_image_center(const cv::Point2f &armor_center)
 {
     // 单位：像素
     double distance_to_image_center = cv::norm(armor_center - image_center_);

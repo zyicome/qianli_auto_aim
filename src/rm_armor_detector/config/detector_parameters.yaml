@@ -1,0 +1,7 @@
+/armor_detector:
+  ros__parameters:
+    debug: true
+
+    detect_color: 1 # 0: blue, 1: red
+
+    MIN_BIG_ARMOR_RATIO: 3.2

@@ -21,7 +21,7 @@ class OpenvinoDetector
 public:
     OpenvinoDetector();
     void set_onnx_model(const std::string &model_path, const std::string &device);
-    void infer(const cv::Mat &input);
+    void infer(const cv::Mat &input, int detect_color);
     cv::Mat letterbox(const cv::Mat &input);
     double sigmoid(double x);
 

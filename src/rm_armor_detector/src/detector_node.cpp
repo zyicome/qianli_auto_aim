@@ -6,7 +6,16 @@ namespace rm_armor_detector
 ArmorDetectorNode::ArmorDetectorNode(const rclcpp::NodeOptions & options) : Node("armor_detector_node", options)
 {
     RCLCPP_INFO(this->get_logger(), "Starting ArmorDetectorNode!");
+    parameters_init();
     test();
+}
+
+void ArmorDetectorNode::parameters_init()
+{
+    this->declare_parameter("MIN_BIG_ARMOR_RATIO", 3.2);
+    MIN_BIG_ARMOR_RATIO_ = this->get_parameter("MIN_BIG_ARMOR_RATIO").as_double();
+    this->declare_parameter("detect_color", 2);
+    detect_color_ = this->get_parameter("detect_color").as_int();
 }
 
 void ArmorDetectorNode::test()
@@ -16,7 +25,7 @@ void ArmorDetectorNode::test()
     OpenvinoDetector detector;
     detector.set_onnx_model(model_path, "CPU");
     cv::Mat input = cv::imread("/home/zyicome/zyb/pictures/armors/images/8.jpg");
-    detector.infer(input);
+    detector.infer(input, detect_color_);
     if(detector.armors_.size() > 0)
     {
         for(int i =0;i<detector.armors_.size();i++)
