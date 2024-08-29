@@ -8,45 +8,46 @@ OpenvinoDetector::OpenvinoDetector()
 void OpenvinoDetector::set_onnx_model(const std::string &model_path, const std::string &device)
 {
      // -------- Step 1. Initialize OpenVINO Runtime Core -------
-    core = ov::Core();
+    core_ = ov::Core();
     // -------- Step 2. Read a model --------
     std::shared_ptr<ov::Model> model;
-    model = core.read_model(model_path);
+    model = core_.read_model(model_path);
     if(model == nullptr)
     {
         std::cerr << "Model not loaded, check the model_path!" << std::endl;
         return;
     }
     // -------- Step 3. Compile a model --------
-    compiled_model = core.compile_model(model, device);
+    compiled_model_ = core_.compile_model(model, device);
     // -------- Step 4. Create an Infer Request --------
-    infer_request = compiled_model.create_infer_request();
+    infer_request_ = compiled_model_.create_infer_request();
+    std::cout << "Openvino onnx model loaded successfully!" << std::endl;
 }
 
 void OpenvinoDetector::infer(const cv::Mat &input)
 {
-    armors.clear();
+    armors_.clear();
     // -------- Step 5. Prepare input --------
     cv::Mat letterbox_img = letterbox(input);
     cv::Mat blob;
-    cv::dnn::blobFromImage(letterbox_img, blob, 1.0 / 255.0, cv::Size(IMAGE_WIDTH, IMAGE_HEIGHT), cv::Scalar(), true, false);
+    cv::dnn::blobFromImage(letterbox_img, blob, 1.0 / 255.0, cv::Size(IMAGE_WIDTH_, IMAGE_HEIGHT_), cv::Scalar(), true, false);
 
     // 图片缩放比例，因为输出的框是由缩放后的图片得到的，所以要根据缩放比例还原回输入的图片的大小
-    float x_scale = letterbox_img.cols / IMAGE_WIDTH;
-    float y_scale = letterbox_img.rows / IMAGE_HEIGHT;
+    float x_scale = letterbox_img.cols / IMAGE_WIDTH_;
+    float y_scale = letterbox_img.rows / IMAGE_HEIGHT_;
 
-    auto input_port = compiled_model.input();
+    auto input_port = compiled_model_.input();
     ov::Tensor input_tensor(input_port.get_element_type(), input_port.get_shape(), blob.ptr(0));
 
     // -------- Step 6. Do inference --------
-    infer_request.set_input_tensor(input_tensor);
-    infer_request.infer();
+    infer_request_.set_input_tensor(input_tensor);
+    infer_request_.infer();
 
     // -------- Step 7. Process output --------
     // 获取输出的张量，得根据实际情况修改，主要根据训练时的网络结构来确定
     // yolov5 has an output of shape (batchSize, 25200, 85) (box[x,y,w,h] + confidence[c] + Num classes)
     // yolov8 has an output of shape (batchSize, 84,  8400) (box[x,y,w,h] + Num classes)
-    auto output0 = infer_request.get_output_tensor(0);
+    auto output0 = infer_request_.get_output_tensor(0);
     cv::Mat output_buffer(output0.get_shape()[1], output0.get_shape()[2], CV_32F, output0.data());
 
     std::vector<int> class_number_ids;
@@ -67,7 +68,7 @@ void OpenvinoDetector::infer(const cv::Mat &input)
             cv::Point class_id_point;
             double maxClassScore;
             cv::minMaxLoc(class_scores_mat, 0, &maxClassScore, 0, &class_id_point);
-            if(maxClassScore > SCORE_THRESHOLD)
+            if(maxClassScore > SCORE_THRESHOLD_)
             {
                 int class_number_id;
                 int class_color_id;
@@ -121,7 +122,7 @@ void OpenvinoDetector::infer(const cv::Mat &input)
     {
         for(int i = 0; i<output_buffer.rows; i++)
         {
-            if(output_buffer.at<float>(i, 8) < CONFIDENCE_THRESHOLD)
+            if(output_buffer.at<float>(i, 8) < CONFIDENCE_THRESHOLD_)
             {
                 continue;
             }
@@ -137,7 +138,7 @@ void OpenvinoDetector::infer(const cv::Mat &input)
             maxNumberScore = sigmoid(maxNumberScore);
             maxColorScore = sigmoid(maxColorScore);
             std::cout << "maxNumberScore: " << maxNumberScore << " maxColorScore: " << maxColorScore << std::endl;
-            if(maxNumberScore > SCORE_THRESHOLD && maxColorScore > COLOR_THRESHOLD)
+            if(maxNumberScore > SCORE_THRESHOLD_ && maxColorScore > COLOR_THRESHOLD_)
             {
                 int class_number = number_id_point.x;
                 float class_number_score = maxNumberScore;
@@ -169,7 +170,7 @@ void OpenvinoDetector::infer(const cv::Mat &input)
 
     // -------- Step 8. NMSBoxes process --------
     std::vector<int> indices;
-    cv::dnn::NMSBoxes(boxes, class_number_scores, SCORE_THRESHOLD, NMS_THRESHOLD, indices);
+    cv::dnn::NMSBoxes(boxes, class_number_scores, SCORE_THRESHOLD_, NMS_THRESHOLD_, indices);
     for(int i = 0; i < indices.size(); i++)
     {
         int idx = indices[i];
@@ -181,11 +182,11 @@ void OpenvinoDetector::infer(const cv::Mat &input)
         std::string class_name;
         if(class_color_id == 0)
         {
-            class_name = class_names[class_number_id] + " blue--" + std::to_string(number_score) + "--" + std::to_string(color_score);
+            class_name = class_names_[class_number_id] + " blue--" + std::to_string(number_score) + "--" + std::to_string(color_score);
         }
         else if(class_color_id == 1)
         {
-            class_name = class_names[class_number_id] + " red--" + std::to_string(number_score) + "--" + std::to_string(color_score);
+            class_name = class_names_[class_number_id] + " red--" + std::to_string(number_score) + "--" + std::to_string(color_score);
         }
         std::vector<cv::Point> four_points = four_points_vec[idx];
         std::cout << "class_name: " << class_name << " score: " << number_score << " box: " << box << std::endl;
@@ -197,7 +198,7 @@ void OpenvinoDetector::infer(const cv::Mat &input)
         armor.name = class_name;
         armor.rect = box;
         armor.four_points = four_points;
-        armors.push_back(armor);
+        armors_.push_back(armor);
     }
 }
 

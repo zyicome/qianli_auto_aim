@@ -25,16 +25,16 @@ public:
     cv::Mat letterbox(const cv::Mat &input);
     double sigmoid(double x);
 
-    ov::Core core;
-    ov::CompiledModel compiled_model;
-    ov::InferRequest infer_request;
+    ov::Core core_;
+    ov::CompiledModel compiled_model_;
+    ov::InferRequest infer_request_;
 
-    const float IMAGE_WIDTH = 640;
-    const float IMAGE_HEIGHT = 640;
-    const float CONFIDENCE_THRESHOLD = 0.5;
-    const float SCORE_THRESHOLD = 0.5;
-    const float COLOR_THRESHOLD = 0.5;
-    const float NMS_THRESHOLD = 0.4;
-    const std::vector<std::string> class_names = {"sentry", "1", "2", "3", "4", "5", "outpost", "base", "base_big"};
-    std::vector<Armor> armors;
+    const float IMAGE_WIDTH_ = 640;
+    const float IMAGE_HEIGHT_ = 640;
+    const float CONFIDENCE_THRESHOLD_ = 0.5;
+    const float SCORE_THRESHOLD_ = 0.5;
+    const float COLOR_THRESHOLD_ = 0.5;
+    const float NMS_THRESHOLD_ = 0.4;
+    const std::vector<std::string> class_names_ = {"sentry", "1", "2", "3", "4", "5", "outpost", "base", "base_big"};
+    std::vector<Armor> armors_;
 };

@@ -51,7 +51,7 @@ public:
     MV_CC_StartGrabbing(camera_handle_);
 
     // Load camera info
-    camera_name_ = this->declare_parameter("camera_name", "narrow_stereo");
+    camera_name_ = this->declare_parameter("camera_name", "hik");
     camera_info_manager_ =
       std::make_unique<camera_info_manager::CameraInfoManager>(this, camera_name_);
     auto camera_info_url =
