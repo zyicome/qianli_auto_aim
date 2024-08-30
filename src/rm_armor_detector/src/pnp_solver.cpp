@@ -24,6 +24,7 @@ void PnpSolver::init()
     big_armor_points_3d_.push_back(cv::Point3f(0, big_armor_half_width, big_armor_half_height));
     big_armor_points_3d_.push_back(cv::Point3f(0, big_armor_half_width, -big_armor_half_height));
     big_armor_points_3d_.push_back(cv::Point3f(0, -big_armor_half_width, -big_armor_half_height));
+    std::cout << "PnpSolver init successfully!" << std::endl;
 }
 
 void PnpSolver::set_matrix(const int &image_width, const int &image_height, cv::Mat &camera_matrix, const cv::Mat &dist_coeffs)
@@ -36,25 +37,14 @@ void PnpSolver::set_matrix(const int &image_width, const int &image_height, cv::
     std::cout << "PnpSolver set matrix successfully!" << std::endl;
 }
 
-bool PnpSolver::solve_pnp(const std::vector<cv::Point2f> &points, const cv::Mat &rvec, const cv::Mat &tvec, bool is_big_armor)
+bool PnpSolver::solve_pnp(const std::vector<cv::Point2f> &points, cv::Mat &rvec, cv::Mat &tvec, bool is_big_armor)
 {
     // 模型准确度有待测试
     //cv::Mat inliers;
     //cv::solvePnPRansac(points, armor_points_3d_, camera_matrix_, dist_coeffs_, rvec, tvec, true, 100, 8.0, 0.99, inliers);
-    if(is_big_armor == false)
-    {
-        cv::solvePnP(points, small_armor_points_3d_, camera_matrix_, dist_coeffs_, rvec, tvec);
-        return true;
-    }
-    else if(is_big_armor == true)
-    {
-        cv::solvePnP(points, big_armor_points_3d_, camera_matrix_, dist_coeffs_, rvec, tvec);
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    std::vector<cv::Point3f> objectPoints = is_big_armor ? big_armor_points_3d_ : small_armor_points_3d_;
+    cv::solvePnP(objectPoints, points, camera_matrix_, dist_coeffs_, rvec, tvec, false, cv::SOLVEPNP_IPPE);
+    return true;
 }
 
 double PnpSolver::get_distance_armor_center_to_image_center(const cv::Point2f &armor_center)

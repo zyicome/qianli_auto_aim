@@ -49,7 +49,7 @@ public:
     bool get_is_ignored(const std::vector<cv::Point2f> &four_points);
     DecisionArmor decide_armor_shoot(const std::vector<DecisionArmor> &decision_armors);
 
-    bool is_debug_;
+    int is_debug_;
     int detect_color_;
     double MIN_BIG_ARMOR_RATIO_;
 
@@ -73,12 +73,18 @@ public:
     // debug
     void create_debug_publishers();
     void destroy_debug_publishers();
-    void debug_deal(const cv::Mat &image, const std::vector<Armor> &armors);
+    void debug_deal(const cv::Mat &image, const std::vector<Armor> &armors, const DecisionArmor &decision_armor);
     
     image_transport::Publisher result_image_pub_;
 
     std::shared_ptr<rclcpp::ParameterEventHandler> debug_param_sub_;
     std::shared_ptr<rclcpp::ParameterCallbackHandle> debug_cb_handle_;
+
+    //------------------------------------------------------------------------------
+    std::chrono::steady_clock::time_point detector_start;
+    std::chrono::steady_clock::time_point detector_end;
+    int detector_fps;
+    int detector_now_fps;
 };
 
 }  // namespace rm_armor_detector

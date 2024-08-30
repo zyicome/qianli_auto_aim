@@ -9,7 +9,7 @@ public:
     PnpSolver();
     void init();
     void set_matrix(const int &image_width, const int &image_height, cv::Mat &camera_matrix, const cv::Mat &dist_coeffs);
-    bool solve_pnp(const std::vector<cv::Point2f> &points, const cv::Mat &rvec, const cv::Mat &tvec, bool is_big_armor);
+    bool solve_pnp(const std::vector<cv::Point2f> &points, cv::Mat &rvec, cv::Mat &tvec, bool is_big_armor);
     double get_distance_armor_center_to_image_center(const cv::Point2f &armor_center);
 
     // 单位：m

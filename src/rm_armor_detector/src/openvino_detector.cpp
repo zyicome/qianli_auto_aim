@@ -141,7 +141,6 @@ void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
             cv::minMaxLoc(color_scores_mat, 0, &maxColorScore, 0, &color_id_point);
             maxNumberScore = sigmoid(maxNumberScore);
             maxColorScore = sigmoid(maxColorScore);
-            std::cout << "maxNumberScore: " << maxNumberScore << " maxColorScore: " << maxColorScore << std::endl;
             if(maxNumberScore > SCORE_THRESHOLD_ && maxColorScore > COLOR_THRESHOLD_)
             {
                 int class_number = number_id_point.x;
@@ -203,7 +202,6 @@ void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
             class_name = class_names_[class_number_id] + " red--" + std::to_string(number_score) + "--" + std::to_string(color_score);
         }
         std::vector<cv::Point2f> four_points = four_points_vec[idx];
-        std::cout << "class_name: " << class_name << " score: " << number_score << " box: " << box << std::endl;
         Armor armor;
         armor.id = class_number_id;
         armor.color = class_color_id;

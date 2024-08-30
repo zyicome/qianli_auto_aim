@@ -8,13 +8,15 @@ ArmorDetectorNode::ArmorDetectorNode(const rclcpp::NodeOptions & options) : Node
     RCLCPP_INFO(this->get_logger(), "Starting ArmorDetectorNode!");
     robots_init();
     parameters_init();
-    test();
+    //test();
 }
 
 void ArmorDetectorNode::parameters_init()
 {
-    this->declare_parameter("is_debug", false);
-    is_debug_ = this->get_parameter("is_debug").as_bool();
+    RCLCPP_INFO(this->get_logger(), "Begin to init parameters!");
+    this->declare_parameter("debug", 0);
+    is_debug_ = this->get_parameter("debug").as_int();
+    std::cout << "is_debug: " << is_debug_ << std::endl;
     if(is_debug_ == true)
     {
         create_debug_publishers();
@@ -29,11 +31,14 @@ void ArmorDetectorNode::parameters_init()
 
     this->declare_parameter("MIN_BIG_ARMOR_RATIO", 3.2);
     MIN_BIG_ARMOR_RATIO_ = this->get_parameter("MIN_BIG_ARMOR_RATIO").as_double();
+    std::cout << "MIN_BIG_ARMOR_RATIO: " << MIN_BIG_ARMOR_RATIO_ << std::endl;
 
     this->declare_parameter("detect_color", 2);
     detect_color_ = this->get_parameter("detect_color").as_int();
+    std::cout << "detect_color: " << detect_color_ << std::endl;
 
     std::string model_path = "/home/zyicome/zyb/qianli_auto_aim/src/rm_armor_detector/model/four_points_armor/armor.onnx";
+    openvino_detector_ = std::make_shared<OpenvinoDetector>();
     openvino_detector_->set_onnx_model(model_path, "CPU");
 
     armor_pub_ = this->create_publisher<rm_msgs::msg::Armor>("/detector/armor", 10);
@@ -43,6 +48,7 @@ void ArmorDetectorNode::parameters_init()
 
     image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/image_raw", rclcpp::SensorDataQoS(), std::bind(&ArmorDetectorNode::image_callback, this, std::placeholders::_1));
+    RCLCPP_INFO(this->get_logger(), "Finished init parameters successfully!");
 }
 
 void ArmorDetectorNode::create_debug_publishers()
@@ -55,11 +61,12 @@ void ArmorDetectorNode::destroy_debug_publishers()
     result_image_pub_.shutdown();
 }
 
-void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor> &armors)
+void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor> &armors, const DecisionArmor &decision_armor)
 {
     if(is_debug_ == true)
     {
         cv::Mat debug_image = image.clone();
+        // 绘制识别到的装甲板框框
         for(size_t i =0;i<armors.size();i++)
         {
             // Convert vector<cv::Point2f> to vector<vector<cv::Point>>
@@ -67,9 +74,21 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor
             for (const auto& p : armors[i].four_points) {
                 pts[0].emplace_back(cv::Point(p.x, p.y));
             }
-            cv::polylines(debug_image, pts, true, cv::Scalar(0, 255, 0), 2);
-            cv::putText(debug_image, armors[i].name, cv::Point(armors[i].rect.x, armors[i].rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 5);
+            if(armors[i].id == decision_armor.id)
+            {
+                cv::polylines(debug_image, pts, true, cv::Scalar(0, 0, 255), 2);
+            }
+            else
+            {
+                cv::polylines(debug_image, pts, true, cv::Scalar(0, 255, 0), 2);
+            }
+            cv::putText(debug_image, armors[i].name, cv::Point(armors[i].rect.x, armors[i].rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
         }
+        // 绘制图片大小以及图片中心
+        cv::putText(debug_image, "width: " + std::to_string(debug_image.cols) + " height: " + std::to_string(debug_image.rows), cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
+        cv::circle(debug_image, image_center_, 5, cv::Scalar(0, 255, 0), -1);
+        // 绘制fps
+        cv::putText(debug_image, "detector fps: " + std::to_string(detector_now_fps), cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
         sensor_msgs::msg::Image debug_image_msg = *(cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", debug_image).toImageMsg());
         result_image_pub_.publish(debug_image_msg);
     }
@@ -77,20 +96,43 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor
 
 void ArmorDetectorNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg)
 {
+    RCLCPP_INFO(this->get_logger(), "Begin to receive camera info!");
     camera_width_ = msg->width;
     camera_height_ = msg->height;
     camera_matrix_ = cv::Mat(3, 3, CV_64F, (void *)msg->k.data()).clone();
     distortion_coefficients_ = cv::Mat(1, 5, CV_64F, (void *)msg->d.data()).clone();
     image_center_ = cv::Point2f(camera_width_ / 2, camera_height_ / 2);
+    
+    std::cout << "camera_width: " << camera_width_ << std::endl;
+    std::cout << "camera_height: " << camera_height_ << std::endl;
+    std::cout << "camera_matrix: " << camera_matrix_ << std::endl;
+    std::cout << "distortion_coefficients: " << distortion_coefficients_ << std::endl;
+    std::cout << "image_center: " << image_center_ << std::endl;
+
+    pnp_solver_ = std::make_shared<PnpSolver>();
     pnp_solver_->set_matrix(camera_width_, camera_height_, camera_matrix_, distortion_coefficients_);
     camera_info_sub_.reset();
+    RCLCPP_INFO(this->get_logger(), "Finished receive camera info successfully!");
 }
 
 void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
+    detector_end = std::chrono::steady_clock::now();
+
+    std::chrono::duration<double> detector_diff = detector_end - detector_start;
+
+    if(detector_diff.count() >= 1)
+    {
+        std::cout << detector_diff.count() << "s and detector receive fps: " << detector_fps<< std::endl;
+        detector_now_fps = detector_fps;
+        detector_start = std::chrono::steady_clock::now();
+        detector_fps = 0;
+    }
+
+  detector_fps++;
+
     // 1. Convert ROS image message to OpenCV image
     cv::Mat image = cv_bridge::toCvCopy(msg, "bgr8")->image;
-    
     // 2. Detect armors
     if(openvino_detector_ != nullptr)
     {
@@ -106,75 +148,79 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     allrobots_adjust(decision_armors_);
 
     // 4. Decide which armor to shoot
-    DecisionArmor decision_armor = decide_armor_shoot(decision_armors_);
+    DecisionArmor decision_armor;
+    decision_armor.color = 2;
+    decision_armor = decide_armor_shoot(decision_armors_);
 
-    // 5. Solve PnP
-    if(pnp_solver_ != nullptr)
+    if(decision_armor.color != 2)
     {
-        cv::Mat rvec, tvec;
-        bool success = pnp_solver_->solve_pnp(decision_armor.four_points, rvec, tvec, decision_armor.is_big_armor);
-        if(success == true)
+        // 5. Solve PnP
+        if(pnp_solver_ != nullptr)
         {
-            rm_msgs::msg::Armor armor_msg;
+            cv::Mat rvec, tvec;
+            bool success = pnp_solver_->solve_pnp(decision_armor.four_points, rvec, tvec, decision_armor.is_big_armor);
+            if(success == true)
+            {
+                rm_msgs::msg::Armor armor_msg;
 
-            // rvec to 3x3 rotation matrix
-            cv::Mat rotation_matrix;
-            cv::Rodrigues(rvec, rotation_matrix);
-            // rotation matrix to quaternion
-            tf2::Matrix3x3 tf2_rotation_matrix(
-            rotation_matrix.at<double>(0, 0), rotation_matrix.at<double>(0, 1),
-            rotation_matrix.at<double>(0, 2), rotation_matrix.at<double>(1, 0),
-            rotation_matrix.at<double>(1, 1), rotation_matrix.at<double>(1, 2),
-            rotation_matrix.at<double>(2, 0), rotation_matrix.at<double>(2, 1),
-            rotation_matrix.at<double>(2, 2));
-            tf2::Quaternion tf2_q;
-            tf2_rotation_matrix.getRotation(tf2_q);
-            armor_msg.pose.orientation = tf2::toMsg(tf2_q);
+                // rvec to 3x3 rotation matrix
+                cv::Mat rotation_matrix;
+                cv::Rodrigues(rvec, rotation_matrix);
+                // rotation matrix to quaternion
+                tf2::Matrix3x3 tf2_rotation_matrix(
+                rotation_matrix.at<double>(0, 0), rotation_matrix.at<double>(0, 1),
+                rotation_matrix.at<double>(0, 2), rotation_matrix.at<double>(1, 0),
+                rotation_matrix.at<double>(1, 1), rotation_matrix.at<double>(1, 2),
+                rotation_matrix.at<double>(2, 0), rotation_matrix.at<double>(2, 1),
+                rotation_matrix.at<double>(2, 2));
+                tf2::Quaternion tf2_q;
+                tf2_rotation_matrix.getRotation(tf2_q);
+                armor_msg.pose.orientation = tf2::toMsg(tf2_q);
 
-            // tvec to translation
-            armor_msg.pose.position.x = tvec.at<double>(0);
-            armor_msg.pose.position.y = tvec.at<double>(1);
-            armor_msg.pose.position.z = tvec.at<double>(2);
+                // tvec to translation
+                armor_msg.pose.position.x = tvec.at<double>(0);
+                armor_msg.pose.position.y = tvec.at<double>(1);
+                armor_msg.pose.position.z = tvec.at<double>(2);
 
-            armor_msg.id = decision_armor.id;
-            armor_msg.color = decision_armor.color;
-            if(armor_msg.id == 0)
-            {
-                armor_msg.name = "sentry";
+                armor_msg.id = decision_armor.id;
+                armor_msg.color = decision_armor.color;
+                if(armor_msg.id == 0)
+                {
+                    armor_msg.name = "sentry";
+                }
+                else if(armor_msg.id >= 1 && armor_msg.id <= 5)
+                {
+                    armor_msg.name = std::to_string(armor_msg.id);
+                }
+                else if(armor_msg.id == 6)
+                {
+                    armor_msg.name = "outpost";
+                }
+                else if(armor_msg.id == 7)
+                {
+                    armor_msg.name = "base";
+                }
+                else if(armor_msg.id == 8)
+                {
+                    armor_msg.name = "base_big";
+                }
+                decision_armor.is_big_armor == true ? armor_msg.type = "BIG" : armor_msg.type = "SMALL";
+                armor_msg.distance_to_image_center = decision_armor.distance_to_image_center;
+                armor_pub_->publish(armor_msg);
             }
-            else if(armor_msg.id >= 1 && armor_msg.id <= 5)
+            else
             {
-                armor_msg.name = std::to_string(armor_msg.id);
-            }
-            else if(armor_msg.id == 6)
-            {
-                armor_msg.name = "outpost";
-            }
-            else if(armor_msg.id == 7)
-            {
-                armor_msg.name = "base";
-            }
-            else if(armor_msg.id == 8)
-            {
-                armor_msg.name = "base_big";
-            }
-            decision_armor.is_big_armor == true ? armor_msg.type = "BIG" : armor_msg.type = "SMALL";
-            armor_msg.distance_to_image_center = decision_armor.distance_to_image_center;
-            armor_pub_->publish(armor_msg);
-
-            if(is_debug_ == true)
-            {
-                debug_deal(image, openvino_detector_->armors_);
+                RCLCPP_ERROR(this->get_logger(), "Pnp solver failed!");
             }
         }
         else
         {
-            RCLCPP_ERROR(this->get_logger(), "Pnp solver failed!");
+            RCLCPP_ERROR(this->get_logger(), "Pnp solver is nullptr!");
         }
     }
-    else
+    if(is_debug_ == true)
     {
-        RCLCPP_ERROR(this->get_logger(), "Pnp solver is nullptr!");
+        debug_deal(image, openvino_detector_->armors_, decision_armor);
     }
 }
 
@@ -211,6 +257,7 @@ void ArmorDetectorNode::test()
 //-----------------------------------------------------------
 void ArmorDetectorNode::robots_init()
 {
+    RCLCPP_INFO(this->get_logger(), "Begin to init robots!");
     DecisionArmor decision_armor;
     decision_armor.is_big_armor = false;
     decision_armor.is_ignored = false;
@@ -226,6 +273,7 @@ void ArmorDetectorNode::robots_init()
         decision_armor.id++;
     }
     decision_armors_[1].is_big_armor = true; // 英雄必定为大装甲板
+    RCLCPP_INFO(this->get_logger(), "Finished init robots successfully!");
 }
 
 void ArmorDetectorNode::get_robots(std::vector<DecisionArmor> &decision_armors, const std::vector<Armor> &armors)
