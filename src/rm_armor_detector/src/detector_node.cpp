@@ -55,6 +55,26 @@ void ArmorDetectorNode::destroy_debug_publishers()
     result_image_pub_.shutdown();
 }
 
+void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor> &armors)
+{
+    if(is_debug_ == true)
+    {
+        cv::Mat debug_image = image.clone();
+        for(size_t i =0;i<armors.size();i++)
+        {
+            // Convert vector<cv::Point2f> to vector<vector<cv::Point>>
+            std::vector<std::vector<cv::Point>> pts(1);
+            for (const auto& p : armors[i].four_points) {
+                pts[0].emplace_back(cv::Point(p.x, p.y));
+            }
+            cv::polylines(debug_image, pts, true, cv::Scalar(0, 255, 0), 2);
+            cv::putText(debug_image, armors[i].name, cv::Point(armors[i].rect.x, armors[i].rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 5);
+        }
+        sensor_msgs::msg::Image debug_image_msg = *(cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", debug_image).toImageMsg());
+        result_image_pub_.publish(debug_image_msg);
+    }
+}
+
 void ArmorDetectorNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg)
 {
     camera_width_ = msg->width;
@@ -141,6 +161,11 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
             decision_armor.is_big_armor == true ? armor_msg.type = "BIG" : armor_msg.type = "SMALL";
             armor_msg.distance_to_image_center = decision_armor.distance_to_image_center;
             armor_pub_->publish(armor_msg);
+
+            if(is_debug_ == true)
+            {
+                debug_deal(image, openvino_detector_->armors_);
+            }
         }
         else
         {

@@ -73,6 +73,7 @@ public:
     // debug
     void create_debug_publishers();
     void destroy_debug_publishers();
+    void debug_deal(const cv::Mat &image, const std::vector<Armor> &armors);
     
     image_transport::Publisher result_image_pub_;
 
