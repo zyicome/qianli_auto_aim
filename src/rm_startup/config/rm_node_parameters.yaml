@@ -1,0 +1,13 @@
+/camera_node:
+  ros__parameters:
+    camera_info_url: package://rm_startup/config/rm_camera_info.yaml
+    exposure_time: 3000
+    gain: 16.0
+
+/armor_detector:
+  ros__parameters:
+    debug: true
+
+    detect_color: 1 # 0: blue, 1: red
+
+    MIN_BIG_ARMOR_RATIO: 3.2

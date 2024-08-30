@@ -55,7 +55,7 @@ void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
     std::vector<int> class_color_ids;
     std::vector<float> class_color_scores;
     std::vector<cv::Rect> boxes;
-    std::vector<std::vector<cv::Point>> four_points_vec;
+    std::vector<std::vector<cv::Point2f>> four_points_vec;
 
     if(output_buffer.rows < output_buffer.cols) // yolov8 == output0.get_shape()[1] < output0.get_shape()[2]
     {
@@ -78,7 +78,7 @@ void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
                     class_number_id = class_id_point.x + 1;
                     class_color_id = 0;
                 }
-                else if(class_id_point.x < 12 || class_id_point.x >= 7 && detect_color == 1)
+                else if((class_id_point.x < 12 || class_id_point.x >= 7) && detect_color == 1)
                 {
                     class_number_id = class_id_point.x - 5;
                     class_color_id = 1;
@@ -113,7 +113,7 @@ void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
                 class_color_ids.push_back(class_color_id);
                 class_color_scores.push_back(class_color_score);
                 boxes.push_back(rect);
-                std::vector<cv::Point> four_point;
+                std::vector<cv::Point2f> four_point;
                 four_point.push_back(cv::Point(left, top));
                 four_point.push_back(cv::Point(left + width, top));
                 four_point.push_back(cv::Point(left + width, top + height));
@@ -172,7 +172,7 @@ void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
                 class_color_scores.push_back(class_color_score);
                 cv::Rect rect(x1, y1, x3 - x1, y3 - y1);
                 boxes.push_back(rect);
-                std::vector<cv::Point> four_point;
+                std::vector<cv::Point2f> four_point;
                 four_point.push_back(cv::Point(x1, y1));
                 four_point.push_back(cv::Point(x4, y4));
                 four_point.push_back(cv::Point(x3, y3));
@@ -185,7 +185,7 @@ void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
     // -------- Step 8. NMSBoxes process --------
     std::vector<int> indices;
     cv::dnn::NMSBoxes(boxes, class_number_scores, SCORE_THRESHOLD_, NMS_THRESHOLD_, indices);
-    for(int i = 0; i < indices.size(); i++)
+    for(size_t i = 0; i < indices.size(); i++)
     {
         int idx = indices[i];
         cv::Rect box = boxes[idx];
@@ -202,7 +202,7 @@ void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
         {
             class_name = class_names_[class_number_id] + " red--" + std::to_string(number_score) + "--" + std::to_string(color_score);
         }
-        std::vector<cv::Point> four_points = four_points_vec[idx];
+        std::vector<cv::Point2f> four_points = four_points_vec[idx];
         std::cout << "class_name: " << class_name << " score: " << number_score << " box: " << box << std::endl;
         Armor armor;
         armor.id = class_number_id;

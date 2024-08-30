@@ -11,7 +11,7 @@ struct Armor
     float number_score;
     float color_score;
     std::string name;
-    std::vector<cv::Point> four_points;
+    std::vector<cv::Point2f> four_points;
     cv::Rect rect;
 };
 

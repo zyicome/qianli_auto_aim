@@ -36,7 +36,7 @@ void PnpSolver::set_matrix(const int &image_width, const int &image_height, cv::
     std::cout << "PnpSolver set matrix successfully!" << std::endl;
 }
 
-void PnpSolver::solve_pnp(const std::vector<cv::Point2f> &points, const cv::Mat &rvec, const cv::Mat &tvec, bool is_big_armor)
+bool PnpSolver::solve_pnp(const std::vector<cv::Point2f> &points, const cv::Mat &rvec, const cv::Mat &tvec, bool is_big_armor)
 {
     // 模型准确度有待测试
     //cv::Mat inliers;
@@ -44,10 +44,16 @@ void PnpSolver::solve_pnp(const std::vector<cv::Point2f> &points, const cv::Mat 
     if(is_big_armor == false)
     {
         cv::solvePnP(points, small_armor_points_3d_, camera_matrix_, dist_coeffs_, rvec, tvec);
+        return true;
     }
     else if(is_big_armor == true)
     {
         cv::solvePnP(points, big_armor_points_3d_, camera_matrix_, dist_coeffs_, rvec, tvec);
+        return true;
+    }
+    else
+    {
+        return false;
     }
 }
 

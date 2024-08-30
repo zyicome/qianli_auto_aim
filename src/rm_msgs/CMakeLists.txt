@@ -1,31 +1,30 @@
 cmake_minimum_required(VERSION 3.8)
-project(rm_armor_detector)
+project(rm_msgs)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-set(OpenVINO_LIBRARIES "/opt/openvino/runtime/lib/intel64/libopenvino.so")
-set(OpenVINO_INCLUDE_DIRS "/opt/openvino/runtime/include")
-
 # find dependencies
-find_package(OpenCV 4.5.4 REQUIRED)
-find_package(ament_cmake_auto REQUIRED)
-# uncomment the following section in order to fill in
+find_package(ament_cmake REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
 
-ament_auto_find_build_dependencies()
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Armors.msg"
+  "msg/Armor.msg"
 
-ament_auto_add_library(${PROJECT_NAME} SHARED
-  DIRECTORY src
+  DEPENDENCIES
+    std_msgs
+    geometry_msgs
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC include/rm_armor_detector)
-
-rclcpp_components_register_node(${PROJECT_NAME}
-  PLUGIN rm_armor_detector::ArmorDetectorNode
-  EXECUTABLE ${PROJECT_NAME}_node
+install(DIRECTORY
+  msg
+  DESTINATION share/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
@@ -40,7 +39,4 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-ament_auto_package(
-  INSTALL_TO_SHARE
-  model
-)
+ament_package()

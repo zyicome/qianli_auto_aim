@@ -51,11 +51,11 @@ public:
     MV_CC_StartGrabbing(camera_handle_);
 
     // Load camera info
-    camera_name_ = this->declare_parameter("camera_name", "hik");
+    camera_name_ = this->declare_parameter("camera_name", "hik_camera");
     camera_info_manager_ =
       std::make_unique<camera_info_manager::CameraInfoManager>(this, camera_name_);
     auto camera_info_url =
-      this->declare_parameter("camera_info_url", "package://hik_camera/config/camera_info.yaml");
+      this->declare_parameter("camera_info_url", "package://rm_startup/config/rm_camera_info.yaml");
     if (camera_info_manager_->validateURL(camera_info_url)) {
       camera_info_manager_->loadCameraInfo(camera_info_url);
       camera_info_msg_ = camera_info_manager_->getCameraInfo();
