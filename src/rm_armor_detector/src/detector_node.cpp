@@ -37,6 +37,35 @@ void ArmorDetectorNode::parameters_init()
     detect_color_ = this->get_parameter("detect_color").as_int();
     std::cout << "detect_color: " << detect_color_ << std::endl;
 
+    this->declare_parameter("priority_armors", std::vector<int>());
+    auto priority_armors_long = this->get_parameter("priority_armors").as_integer_array();
+    std::vector<int> priority_armors;
+    std::transform(priority_armors_long.begin(), priority_armors_long.end(), std::back_inserter(priority_armors),
+                    [](long int val) { return static_cast<int>(val); });
+    if(priority_armors.size() != decision_armors_.size())
+    {
+        RCLCPP_ERROR(this->get_logger(), "priority_armors size is != decision_armors_ size !");
+        return;
+    }
+    for(size_t i = 0;i<decision_armors_.size();i++)
+    {
+        decision_armors_[i].priority = priority_armors[i];
+    }
+    for(size_t i = 0;i<decision_armors_.size();i++)
+    {
+        std::cout << "priority_armors: " << decision_armors_[i].priority << std::endl;
+    }
+
+    this->declare_parameter("ignore_armors", std::vector<int>());
+    auto ignore_armors_long = this->get_parameter("ignore_armors").as_integer_array();
+    ignore_armors_.clear();
+    std::transform(ignore_armors_long.begin(), ignore_armors_long.end(), std::back_inserter(ignore_armors_),
+                    [](long int val) { return static_cast<int>(val); });
+    for(size_t i = 0;i<ignore_armors_.size();i++)
+    {
+        std::cout << "ignore_armors: " << ignore_armors_[i] << std::endl;
+    }
+
     std::string model_path = "/home/zyicome/zyb/qianli_auto_aim/src/rm_armor_detector/model/four_points_armor/armor.onnx";
     openvino_detector_ = std::make_shared<OpenvinoDetector>();
     openvino_detector_->set_onnx_model(model_path, "CPU");
@@ -77,6 +106,8 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor
             if(armors[i].id == decision_armor.id)
             {
                 cv::polylines(debug_image, pts, true, cv::Scalar(0, 0, 255), 2);
+                //绘制距离
+                cv::putText(debug_image, std::to_string(decision_armor.distance), cv::Point((armors[i].four_points[0].x + armors[i].four_points[2].x) / 2, (armors[i].four_points[0].y + armors[i].four_points[2].y) / 2), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
             }
             else
             {
@@ -161,6 +192,8 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
             bool success = pnp_solver_->solve_pnp(decision_armor.four_points, rvec, tvec, decision_armor.is_big_armor);
             if(success == true)
             {
+                decision_armor.distance = std::sqrt(tvec.at<double>(0) * tvec.at<double>(0) + tvec.at<double>(1) * tvec.at<double>(1) + tvec.at<double>(2) * tvec.at<double>(2));
+
                 rm_msgs::msg::Armor armor_msg;
 
                 // rvec to 3x3 rotation matrix
@@ -265,6 +298,7 @@ void ArmorDetectorNode::robots_init()
     decision_armor.id = 0;
     decision_armor.color = 2; //默认为灰色，即无效装甲板
     decision_armor.priority = 100;
+    decision_armor.distance = 0;
     decision_armor.distance_to_image_center = 0;
     decision_armor.four_points = {cv::Point(0, 0), cv::Point(0, 0), cv::Point(0, 0), cv::Point(0, 0)};
     for(int i = 0;i < 9; i++)
@@ -289,7 +323,7 @@ void ArmorDetectorNode::get_robots(std::vector<DecisionArmor> &decision_armors, 
         armor_color = armors[i].color;
         armor_four_points = armors[i].four_points;
         is_big_armor = get_is_big_armor(armor_four_points);
-        if(get_is_ignored(armor_four_points) == true)
+        if(get_is_ignored(armors[i], armor_four_points) == true)
         {
             continue;
         }
@@ -311,6 +345,7 @@ void ArmorDetectorNode::allrobots_adjust(std::vector<DecisionArmor> &decision_ar
         if(decision_armors[i].is_continue == false)
         {
             decision_armors[i].color = 2; //默认为灰色，即无效装甲板
+            decision_armors[i].distance = 0;
             decision_armors[i].distance_to_image_center = 0;
             decision_armors[i].four_points = {cv::Point(0, 0), cv::Point(0, 0), cv::Point(0, 0), cv::Point(0, 0)};
         }
@@ -334,8 +369,21 @@ bool ArmorDetectorNode::get_is_big_armor(const std::vector<cv::Point2f> &four_po
     }
 }
 
-bool ArmorDetectorNode::get_is_ignored(const std::vector<cv::Point2f> &four_points)
+bool ArmorDetectorNode::get_is_ignored(const Armor &armor, const std::vector<cv::Point2f> &four_points)
 {
+    // 忽略类别判断
+    if(ignore_armors_.size() != 0)
+    {
+        for(size_t i = 0; i<ignore_armors_.size(); i++)
+        {
+            std::cout << "ignore_armors: " << ignore_armors_[i] << std::endl;
+            std::cout << "armor.id: " << armor.id << std::endl;
+            if(armor.id == ignore_armors_[i])
+            {
+                return true;
+            }
+        }
+    }
     double width = cv::norm(four_points[0] - four_points[1]);
     if(width == 0)
     {

@@ -39,6 +39,14 @@ def generate_launch_description():
         extra_arguments=[{'use_intra_process_comms': True}],
     )
 
+    tracker_node = Node(
+        package='rm_armor_tracker',
+        plugin='rm_armor_tracker::ArmorTrackerNode',
+        name='armor_tracker',
+        parameters=[node_params],
+        output='both',
+    )
+
     container = ComposableNodeContainer(
         name='image_container',
         namespace='',
@@ -54,4 +62,5 @@ def generate_launch_description():
 
     return LaunchDescription([
         container,
+        tracker_node,
     ])

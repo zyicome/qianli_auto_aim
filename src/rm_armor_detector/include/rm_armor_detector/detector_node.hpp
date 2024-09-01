@@ -29,6 +29,7 @@ struct DecisionArmor
     int id; // 0 哨兵 1-5 数字 6 前哨站 7 基地 8 基地大装甲
     int color; // 0: red 1: blue
     int priority; // 优先级越高数字越小，优先级高先打，优先级相同则选择里图像中心最近的
+    float distance;
     float distance_to_image_center;
     std::vector<cv::Point2f> four_points;
 };
@@ -46,7 +47,7 @@ public:
     void get_robots(std::vector<DecisionArmor> &decision_armors, const std::vector<Armor> &armors);
     void allrobots_adjust(std::vector<DecisionArmor> &decision_armors);
     bool get_is_big_armor(const std::vector<cv::Point2f> &four_points);
-    bool get_is_ignored(const std::vector<cv::Point2f> &four_points);
+    bool get_is_ignored(const Armor &armor, const std::vector<cv::Point2f> &four_points);
     DecisionArmor decide_armor_shoot(const std::vector<DecisionArmor> &decision_armors);
 
     int is_debug_;
@@ -59,6 +60,7 @@ public:
     cv::Mat distortion_coefficients_;
     cv::Point2f image_center_;
 
+    std::vector<int> ignore_armors_;
     std::vector<DecisionArmor> decision_armors_;
 
     std::shared_ptr<OpenvinoDetector> openvino_detector_;
