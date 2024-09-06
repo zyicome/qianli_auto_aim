@@ -14,9 +14,9 @@ ArmorDetectorNode::ArmorDetectorNode(const rclcpp::NodeOptions & options) : Node
 void ArmorDetectorNode::parameters_init()
 {
     RCLCPP_INFO(this->get_logger(), "Begin to init parameters!");
-    this->declare_parameter("debug", 0);
-    is_debug_ = this->get_parameter("debug").as_int();
-    std::cout << "is_debug: " << is_debug_ << std::endl;
+    this->declare_parameter("detector_debug", 0);
+    is_debug_ = this->get_parameter("detector_debug").as_int();
+    std::cout << "is_detector_debug: " << is_debug_ << std::endl;
     if(is_debug_ == true)
     {
         create_debug_publishers();
@@ -24,7 +24,7 @@ void ArmorDetectorNode::parameters_init()
     // Debug param change moniter
     debug_param_sub_ = std::make_shared<rclcpp::ParameterEventHandler>(this);
     debug_cb_handle_ =
-    debug_param_sub_->add_parameter_callback("debug", [this](const rclcpp::Parameter & p) {
+    debug_param_sub_->add_parameter_callback("detector_debug", [this](const rclcpp::Parameter & p) {
       is_debug_ = p.as_bool();
       is_debug_ ? create_debug_publishers() : destroy_debug_publishers();
     });
@@ -250,6 +250,16 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
         {
             RCLCPP_ERROR(this->get_logger(), "Pnp solver is nullptr!");
         }
+    }
+    else // 未识别到有效装甲板，也需要发布消息，刷新tracker
+    {
+        rm_msgs::msg::Armor armor_msg;
+        armor_msg.id = -1;
+        armor_msg.color = 2;
+        armor_msg.name = "none";
+        armor_msg.type = "none";
+        armor_msg.distance_to_image_center = 0;
+        armor_pub_->publish(armor_msg);
     }
     if(is_debug_ == true)
     {

@@ -1,12 +1,11 @@
 cmake_minimum_required(VERSION 3.8)
-project(rm_armor_tracker)
+project(rm_serial_driver)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
 # find dependencies
-find_package(OpenCV 4.5.4 REQUIRED)
 find_package(ament_cmake_auto REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
@@ -18,10 +17,10 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   DIRECTORY src
 )
 
-target_include_directories(${PROJECT_NAME} PUBLIC include/rm_armor_tracker)
+target_include_directories(${PROJECT_NAME} PUBLIC include/rm_serial_driver)
 
 rclcpp_components_register_node(${PROJECT_NAME}
-  PLUGIN rm_armor_tracker::ArmorTrackerNode
+  PLUGIN rm_serial_driver::SerialDriverNode
   EXECUTABLE ${PROJECT_NAME}_node
 )
 
