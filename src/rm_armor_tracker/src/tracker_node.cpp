@@ -128,6 +128,7 @@ void ArmorTrackerNode::armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_
         {
             rclcpp::Time current_time = armor_msg->header.stamp;
             dt_ = (current_time - last_time_).seconds();
+            last_time_ = current_time;
             tracker_->ekf_->dt_ = dt_;
             tracker_->armor_ekf_->dt_ = dt_;
             tracker_->lost_thres_ = static_cast<int>(lost_time_thres_ / dt_);
@@ -140,6 +141,7 @@ void ArmorTrackerNode::armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_
         {
             rclcpp::Time current_time = armor_msg->header.stamp;
             dt_ = (current_time - last_time_).seconds();
+            last_time_ = current_time;
             tracker_->ekf_->dt_ = dt_;
             tracker_->armor_ekf_->dt_ = dt_;
             tracker_->lost_thres_ = static_cast<int>(lost_time_thres_ / dt_);

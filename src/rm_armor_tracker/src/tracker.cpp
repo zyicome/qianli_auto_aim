@@ -207,6 +207,7 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
             {
                 tracker_armor_->detect_count = 0;
                 tracker_armor_->status = "LOST";
+                tracker_armor_->armor_id = -1;
             }
         }
         else if(tracker_armor_->status == "TRACKING")
@@ -226,6 +227,7 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
                 {
                     tracker_armor_->lost_count = 0;
                     tracker_armor_->status = "LOST";
+                    tracker_armor_->armor_id = -1;
                 }
             }
             else

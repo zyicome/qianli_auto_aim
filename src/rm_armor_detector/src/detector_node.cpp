@@ -256,7 +256,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     {
         rm_msgs::msg::Armor armor_msg;
         armor_msg.header = msg->header;
-        armor_msg.id = -1;
+        armor_msg.id = 100;
         armor_msg.color = 2;
         armor_msg.name = "none";
         armor_msg.type = "none";
