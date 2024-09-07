@@ -5,11 +5,11 @@ EKF::EKF()
     std::cout << "EKF constructed!" << std::endl;
 }
 
-void EKF::ekf_init(cv::Mat Q_, cv::Mat R_)
+void EKF::ekf_init(cv::Mat Q, cv::Mat R)
 {
     std::cout << "EKF init" << std::endl;
-    this->Q_ = Q_;
-    this->R_ = R_;
+    this->Q_ = Q;
+    this->R_ = R;
     std::cout << "Finished init EKF" << std::endl;
 }
 
@@ -75,7 +75,7 @@ cv::Mat EKF::jacob_h(const cv::Mat &state)
 void EKF::EKF_predict()
 {
     // 1. Predict
-    state_ = motion_model(state_);
+    motion_model(state_);
     cv::Mat jF = jacob_f();
     P_ = jF * P_ * jF.t() + Q_;
 }
