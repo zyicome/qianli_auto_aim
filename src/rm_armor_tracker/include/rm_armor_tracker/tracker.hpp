@@ -26,6 +26,7 @@ class Tracker
 {
 public:
     Tracker();
+    Tracker(double max_match_distance, double max_match_yaw_diff);
     void tracker_init(const rm_msgs::msg::Armor::SharedPtr armor_msg);
     void EKF_init(const rm_msgs::msg::Armor::SharedPtr &armor_msg);
     void ArmorEKF_init(const rm_msgs::msg::Armor::SharedPtr &armor_msg);
@@ -37,8 +38,8 @@ public:
     double max_match_distance_;
     double max_match_yaw_diff_;
 
-    double tracking_thres;
-    double lost_thres;
+    double tracking_thres_;
+    double lost_thres_;
 
     double dz_;
     double another_r_;

@@ -1,10 +1,11 @@
 std_msgs/Header header
 bool tracking
 string id
-int32 armors_num
+int32 armor_num
 geometry_msgs/Point armor_position
 geometry_msgs/Point car_position
-geometry_msgs/Vector3 velocity
+geometry_msgs/Vector3 armor_velocity
+geometry_msgs/Vector3 car_velocity
 float64 yaw
 float64 v_yaw
 float64 radius_1

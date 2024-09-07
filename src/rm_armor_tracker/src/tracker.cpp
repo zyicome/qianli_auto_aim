@@ -8,6 +8,8 @@ Tracker::Tracker(double max_match_distance, double max_match_yaw_diff)
     tracker_armor_ = std::make_unique<TrackerArmor>();
     tracker_armor_->armor_id = -1;
     tracker_armor_->armor_num = 0;
+    tracker_armor_->detect_count = 0;
+    tracker_armor_->lost_count = 0;
     tracker_armor_->armor_name = "";
     tracker_armor_->status = "LOST";
 }
@@ -178,7 +180,7 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
             if(is_matched)
             {
                 tracking_armor_->detect_count++;
-                if(tracking_armor_->detect_count > tracking_thres)
+                if(tracking_armor_->detect_count > tracking_thres_)
                 {
                     tracking_armor_->detect_count = 0;
                     tracking_armor_->status = "TRACKING";
@@ -203,7 +205,7 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
             if(is_matched == false)
             {
                 tracking_armor_->lost_count++;
-                if(tracking_armor_->lost_count > lost_thres)
+                if(tracking_armor_->lost_count > lost_thres_)
                 {
                     tracking_armor_->lost_count = 0;
                     tracking_armor_->status = "LOST";

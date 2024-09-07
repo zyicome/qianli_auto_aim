@@ -6,7 +6,8 @@ class ArmorEKF
 {
 public:
     ArmorEKF();
-    void ekf_init(cv::Mat Q_, cv::Mat R_);
+    void Q_update();
+    void R_update(cv::Mat &z);
     void set_state(cv::Mat &state);
     void motion_model(cv::Mat &state);
     cv::Mat observation_model(cv::Mat &state);

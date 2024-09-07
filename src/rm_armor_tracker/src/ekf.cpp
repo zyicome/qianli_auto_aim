@@ -5,12 +5,30 @@ EKF::EKF()
     std::cout << "EKF constructed!" << std::endl;
 }
 
-void EKF::ekf_init(cv::Mat Q, cv::Mat R)
+void EKF::Q_update()
 {
-    std::cout << "EKF init" << std::endl;
-    this->Q_ = Q;
-    this->R_ = R;
-    std::cout << "Finished init EKF" << std::endl;
+    double t = dt_, x = q_xyz_, y = q_yaw_, r = q_r_;
+    double q_x_x = pow(t, 4) / 4 * x, q_x_vx = pow(t, 3) / 2 * x, q_vx_vx = pow(t, 2) * x;
+    double q_y_y = pow(t, 4) / 4 * y, q_y_vy = pow(t, 3) / 2 * x, q_vy_vy = pow(t, 2) * y;
+    double q_r = pow(t, 4) / 4 * r;
+
+    Q_ = (cv::Mat_<double>(9, 9) << q_x_x,  q_x_vx, 0,      0,      0,      0,      0,      0,      0,
+                                    q_x_vx, q_vx_vx,0,      0,      0,      0,      0,      0,      0,
+                                    0,      0,      q_x_x,  q_x_vx, 0,      0,      0,      0,      0,
+                                    0,      0,      q_x_vx, q_vx_vx,0,      0,      0,      0,      0,
+                                    0,      0,      0,      0,      q_x_x,  q_x_vx, 0,      0,      0,
+                                    0,      0,      0,      0,      q_x_vx, q_vx_vx,0,      0,      0,
+                                    0,      0,      0,      0,      0,      0,      q_y_y,  q_y_vy, 0,
+                                    0,      0,      0,      0,      0,      0,      q_y_vy, q_vy_vy,0,
+                                    0,      0,      0,      0,      0,      0,      0,      0,      q_r;)
+}
+
+void EKF::R_update(const cv::Mat &z)
+{
+    R_ = (cv::Mat_<double>(4, 4) << abs(r_xyz_ * z.at<double>(0,0)), 0,      0,      0,
+                                    0,      abs(r_xyz_ * z.at<double>(1,0)), 0,      0,
+                                    0,      0,      abs(r_xyz_ * * z.at<double>(2,0)), 0,
+                                    0,      0,      0,      r_yaw_);
 }
 
 void EKF::set_state(cv::Mat &state)
@@ -75,6 +93,7 @@ cv::Mat EKF::jacob_h(const cv::Mat &state)
 void EKF::EKF_predict()
 {
     // 1. Predict
+    Q_update();
     motion_model(state_);
     cv::Mat jF = jacob_f();
     P_ = jF * P_ * jF.t() + Q_;
@@ -83,6 +102,7 @@ void EKF::EKF_predict()
 void EKF::EKF_update(const cv::Mat &z)
 {
     // 2. Update
+    R_update(z);
     cv::Mat jH = jacob_h(state_);
     cv::Mat z_pred = observation_model(state_);
     cv::Mat y = z - z_pred;

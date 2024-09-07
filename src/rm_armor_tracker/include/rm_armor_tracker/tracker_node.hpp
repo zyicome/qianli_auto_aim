@@ -8,6 +8,8 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/vector3.hpp"
 
 #include <message_filters/subscriber.h>
 #include <tf2_ros/buffer.h>
@@ -17,6 +19,7 @@
 
 
 #include "rm_msgs/msg/armor.hpp"
+#include "rm_msgs/msg/target.hpp"
 
 #include "tracker.hpp"
 
@@ -25,6 +28,20 @@ namespace rm_armor_tracker
 
 using tf2_filter = tf2_ros::MessageFilter<rm_msgs::msg::Armor>;
 
+struct DebugParam
+{
+    double last_armor_x;
+    double last_armor_y;
+    double last_armor_x_v;
+    double last_armor_y_v;
+    double last_car_x;
+    double last_car_y;
+    double last_car_x_v;
+    double last_car_y_v;
+    double last_yaw;
+    double last_yaw_v;
+};
+
 class ArmorTrackerNode : public rclcpp::Node
 {
 public:
@@ -32,7 +49,13 @@ public:
     void parameters_init();
     void armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_msg);
 
+    rclcpp::Time last_time_;
+    double dt_;
+    int lost_time_thres_;
+
     std::shared_ptr<Tracker> tracker_;
+
+    rclcpp::Publisher<rm_msgs::msg::Target>::SharedPtr target_pub_;
 
     //-----------------------------------------------------------------
     // tf2
@@ -49,8 +72,11 @@ public:
     void create_debug_publishers();
     void destroy_debug_publishers();
     void ResultImageCallback(const sensor_msgs::msg::Image::SharedPtr msg);
+    void debug_deal();
 
     int is_debug_;
+    cv::Mat debug_image_;
+    std::shared_ptr<DebugParam> debug_param_;
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr detector_result_image_sub_;
 

@@ -5,12 +5,21 @@ ArmorEKF::ArmorEKF()
     std::cout << "ArmorEKF constructed!" << std::endl;
 }
 
-void ArmorEKF::ekf_init(cv::Mat Q, cv::Mat R)
+void ArmorEKF::Q_update()
 {
-    std::cout << "ArmorEKF init" << std::endl;
-    this->Q_ = Q;
-    this->R_ = R;
-    std::cout << "Finished init ArmorEKF" << std::endl;
+    double t = dt_, x = q_xyz_;
+    double q_x_x = pow(t, 4) / 4 * x, q_x_vx = pow(t, 3) / 2 * x, q_vx_vx = pow(t, 2) * x;
+
+    Q_ = (cv::Mat_<double>(4, 4) << q_x_x,  q_x_vx, 0,      0,
+                                    q_x_vx, q_vx_vx,0,      0,
+                                    0,      0,      q_x_x,  q_x_vx,
+                                    0,      0,      q_x_vx, q_vx_vx);
+}
+
+void ArmorEKF::R_update(cv::Mat &z)
+{
+    R_ = (cv::Mat_<double>(2, 2) << abs(r_xyz_ * z.at<double>(0,0)), 0,
+                                    0, abs(r_xyz_ * z.at<double>(1,0)));
 }
 
 void ArmorEKF::set_state(cv::Mat &state)
@@ -54,6 +63,8 @@ cv::Mat ArmorEKF::jacob_h()
 
 void ArmorEKF::EKF_predict()
 {
+    // 1. Predict
+    Q_update();
     motion_model(state_);
     cv::Mat jF = jacob_f();
     P_ = jF * P_ * jF.t() + Q_;
@@ -62,6 +73,7 @@ void ArmorEKF::EKF_predict()
 void ArmorEKF::EKF_update(cv::Mat &Z)
 {
     // 2. Update
+    R_update(Z);
     cv::Mat jH = jacob_h();
     cv::Mat z_pred = observation_model(state_);
     cv::Mat y = z - z_pred;
