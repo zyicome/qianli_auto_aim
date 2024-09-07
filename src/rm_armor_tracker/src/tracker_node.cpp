@@ -32,12 +32,14 @@ void ArmorTrackerNode::parameters_init()
     this->declare_parameter("max_match_yaw_diff", 1.0);
     double max_match_yaw_diff = this->get_parameter("max_match_yaw_diff").as_double();
     tracker_ = std::make_shared<Tracker>(max_match_distance, max_match_yaw_diff);
+    tracker_->ekf_ = std::make_shared<EKF>();
+    tracker_->armor_ekf_ = std::make_shared<ArmorEKF>();
 
     this->declare_parameter("lost_time_thres", 0.3);
     lost_time_thres_ = this->get_parameter("lost_time_thres").as_double();
 
     this->declare_parameter("tracking_time_thres", 5);
-    tracker_->tracking_thres_ = this->get_parameter("tracking_time_thres").as_double();
+    tracker_->tracking_thres_ = this->get_parameter("tracking_time_thres").as_int();
 
     std::cout << "max_match_distance: " << max_match_distance << std::endl;
     std::cout << "max_match_yaw_diff: " << max_match_yaw_diff << std::endl;
@@ -49,9 +51,10 @@ void ArmorTrackerNode::parameters_init()
 
     //-----------------------------------------------------------------
     // ekf
-    this->declare_parameter("q_xyz", 20);
-    this->declare_parameter("q_yaw", 200);
-    this->declare_parameter("q_r", 800);
+
+    this->declare_parameter("q_xyz", 20.0);
+    this->declare_parameter("q_yaw", 200.0);
+    this->declare_parameter("q_r", 800.0);
     this->declare_parameter("r_xyz", 0.002);
     this->declare_parameter("r_yaw", 0.005);
 
@@ -68,7 +71,7 @@ void ArmorTrackerNode::parameters_init()
     std::cout << "r_yaw: " << tracker_->ekf_->r_yaw_ << std::endl;
 
     // armor ekf
-    this->declare_parameter("a_q_xyz", 20);
+    this->declare_parameter("a_q_xyz", 20.0);
     this->declare_parameter("a_r_xyz", 0.002);
 
     tracker_->armor_ekf_->q_xyz_ = this->get_parameter("a_q_xyz").as_double();
@@ -102,18 +105,46 @@ void ArmorTrackerNode::parameters_init()
 
 void ArmorTrackerNode::armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_msg)
 {
-    if(armor_msg->id != tracker_->tracker_armor_->armor_id)
+    geometry_msgs::msg::PoseStamped ps;
+    ps.header = armor_msg->header;
+    ps.pose = armor_msg->pose;
+    try
     {
-        tracker_->tracker_init(armor_msg);
+        armor_msg->pose = tf2_buffer_->transform(ps, target_frame_).pose;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        return;
+    }
+    
+    if(armor_msg->color != 2)
+    {
+        if(armor_msg->id != tracker_->tracker_armor_->armor_id)
+        {
+            tracker_->tracker_init(armor_msg);
+        }
+        else
+        {
+            rclcpp::Time current_time = armor_msg->header.stamp;
+            dt_ = (current_time - last_time_).seconds();
+            tracker_->ekf_->dt_ = dt_;
+            tracker_->armor_ekf_->dt_ = dt_;
+            tracker_->lost_thres_ = static_cast<int>(lost_time_thres_ / dt_);
+            tracker_->tracker_update(armor_msg);
+        }
     }
     else
     {
-        rclcpp::Time current_time = armor_msg->header.stamp;
-        dt_ = (current_time - last_time_).seconds();
-        tracker_->ekf_->dt_ = dt_;
-        tracker_->armor_ekf_->dt_ = dt_;
-        tracker_->lost_thres_ = static_cast<int>(lost_time_thres_ / dt_);
-        tracker_->tracker_update(armor_msg);
+        if(tracker_->tracker_armor_->status == "TRACKING")
+        {
+            rclcpp::Time current_time = armor_msg->header.stamp;
+            dt_ = (current_time - last_time_).seconds();
+            tracker_->ekf_->dt_ = dt_;
+            tracker_->armor_ekf_->dt_ = dt_;
+            tracker_->lost_thres_ = static_cast<int>(lost_time_thres_ / dt_);
+            tracker_->tracker_update(armor_msg);
+        }
     }
 
     // publish target
@@ -174,7 +205,7 @@ void ArmorTrackerNode::create_debug_publishers()
 
     // sub
     detector_result_image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        "/detector_result_image", 10, std::bind(&ArmorTrackerNode::ResultImageCallback, this, std::placeholders::_1));
+        "/detector/result_image", 10, std::bind(&ArmorTrackerNode::ResultImageCallback, this, std::placeholders::_1));
     
     // pub
     tracker_result_image_pub_ = image_transport::create_publisher(this, "/tracker/result_image");
@@ -207,7 +238,7 @@ void ArmorTrackerNode::ResultImageCallback(const sensor_msgs::msg::Image::Shared
             return;
         }
         cv::Mat image = cv_ptr->image;
-        cv::putText(image, "tracker", cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
+        cv::putText(image, tracker_->tracker_armor_->status, cv::Point(10, 80), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
         cv_bridge::CvImage cv_image;
         cv_image.image = image;
         cv_image.encoding = "bgr8";
@@ -234,15 +265,15 @@ void ArmorTrackerNode::debug_deal()
         double yaw_v = tracker_->target_state_.at<double>(7,0);
         double r = tracker_->target_state_.at<double>(8,0) * 100;
 
-        double armmor_car_x = car_x - yaw * r;
-        double armmor_car_y = car_y + yaw * r;
+        double armor_car_x = car_x - cos(yaw) * r;
+        double armor_car_y = car_y - cos(yaw) * r;
 
         //draw
         //RGB
         cv::line(debug_image_, cv::Point(debug_param_->last_armor_x, debug_param_->last_armor_y), cv::Point(armor_x, armor_y), cv::Scalar(0, 0, 0), 2);
         cv::line(debug_image_, cv::Point(debug_param_->last_car_x, debug_param_->last_car_y), cv::Point(car_x, car_y), cv::Scalar(0, 0, 255), 2);
-        cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(armmor_car_x, armmor_car_y), cv::Scalar(0, 255, 0), 2);
-        cv::circle(debug_image_, cv::Point(armor_x, armor_y), 2, cv::Scalar(255, 0, 0), -1);
+        cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(armor_car_x, armor_car_y), cv::Scalar(0, 255, 0), 2);
+        cv::circle(debug_image_, cv::Point(armor_x, armor_y), 1, cv::Scalar(255, 0, 0), 1);
         cv::line(debug_image_, cv::Point(armor_x, armor_y), cv::Point(armor_x + armor_x_v, armor_y), cv::Scalar(0, 0, 0), 2);
         cv::line(debug_image_, cv::Point(armor_x, armor_y), cv::Point(armor_x, armor_y + armor_y_v), cv::Scalar(0, 0, 0), 2);
         cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(car_x + car_x_v, car_y), cv::Scalar(0, 0, 255), 2);
@@ -260,7 +291,7 @@ void ArmorTrackerNode::debug_deal()
         debug_param_->last_yaw_v = yaw_v;
 
         cv::imshow("EKF Simulation", debug_image_);
-        cv::waitKey(0);
+        cv::waitKey(1);
     }
 }
 //--------------------------------------------------------------------------------------------------

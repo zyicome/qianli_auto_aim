@@ -3,6 +3,16 @@
 EKF::EKF()
 {
     std::cout << "EKF constructed!" << std::endl;
+    state_ = cv::Mat::zeros(9, 1, CV_64F);
+    P_ = cv::Mat::eye(9, 9, CV_64F);
+    Q_ = cv::Mat::zeros(9, 9, CV_64F);
+    R_ = cv::Mat::zeros(4, 4, CV_64F);
+    dt_ = 0.0;
+    q_xyz_ = 0.0;
+    q_yaw_ = 0.0;
+    q_r_ = 0.0;
+    r_xyz_ = 0.0;
+    r_yaw_ = 0.0;
 }
 
 void EKF::Q_update()
@@ -20,14 +30,14 @@ void EKF::Q_update()
                                     0,      0,      0,      0,      q_x_vx, q_vx_vx,0,      0,      0,
                                     0,      0,      0,      0,      0,      0,      q_y_y,  q_y_vy, 0,
                                     0,      0,      0,      0,      0,      0,      q_y_vy, q_vy_vy,0,
-                                    0,      0,      0,      0,      0,      0,      0,      0,      q_r;)
+                                    0,      0,      0,      0,      0,      0,      0,      0,      q_r);
 }
 
 void EKF::R_update(const cv::Mat &z)
 {
     R_ = (cv::Mat_<double>(4, 4) << abs(r_xyz_ * z.at<double>(0,0)), 0,      0,      0,
                                     0,      abs(r_xyz_ * z.at<double>(1,0)), 0,      0,
-                                    0,      0,      abs(r_xyz_ * * z.at<double>(2,0)), 0,
+                                    0,      0,      abs(r_xyz_ * z.at<double>(2,0)), 0,
                                     0,      0,      0,      r_yaw_);
 }
 
@@ -80,8 +90,8 @@ cv::Mat EKF::jacob_f()
 
 cv::Mat EKF::jacob_h(const cv::Mat &state)
 {
-    double yaw = x.at<double>(6,0);
-    double r = x.at<double>(8,0);
+    double yaw = state.at<double>(6,0);
+    double r = state.at<double>(8,0);
     cv::Mat jH;
     jH = (cv::Mat_<double>(4, 9) << 1,   0,   0,   0,   0,   0,   r * sin(yaw),          0,   -cos(yaw),
                                     0,   0,   1,   0,   0,   0,   -r * cos(yaw),          0,   -sin(yaw),

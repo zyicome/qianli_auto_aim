@@ -82,9 +82,19 @@ def generate_launch_description():
     )
     print(container)
 
+    tracker_node_delay = TimerAction(  
+        period=2.0,
+        actions=[tracker_node],
+    )
+
+    serial_driver_node_delay = TimerAction(
+        period=2.0,
+        actions=[serial_driver_node],
+    )
+
     return LaunchDescription([
         robot_state_publisher,
         container,
-        tracker_node,
-        serial_driver_node,
+        tracker_node_delay,
+        serial_driver_node_delay,
     ])

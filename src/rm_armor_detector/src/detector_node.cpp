@@ -160,7 +160,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
         detector_fps = 0;
     }
 
-  detector_fps++;
+    detector_fps++;
 
     // 1. Convert ROS image message to OpenCV image
     cv::Mat image = cv_bridge::toCvCopy(msg, "bgr8")->image;
@@ -195,6 +195,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 decision_armor.distance = std::sqrt(tvec.at<double>(0) * tvec.at<double>(0) + tvec.at<double>(1) * tvec.at<double>(1) + tvec.at<double>(2) * tvec.at<double>(2));
 
                 rm_msgs::msg::Armor armor_msg;
+                armor_msg.header = msg->header;
 
                 // rvec to 3x3 rotation matrix
                 cv::Mat rotation_matrix;
@@ -254,6 +255,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     else // 未识别到有效装甲板，也需要发布消息，刷新tracker
     {
         rm_msgs::msg::Armor armor_msg;
+        armor_msg.header = msg->header;
         armor_msg.id = -1;
         armor_msg.color = 2;
         armor_msg.name = "none";
@@ -386,8 +388,6 @@ bool ArmorDetectorNode::get_is_ignored(const Armor &armor, const std::vector<cv:
     {
         for(size_t i = 0; i<ignore_armors_.size(); i++)
         {
-            std::cout << "ignore_armors: " << ignore_armors_[i] << std::endl;
-            std::cout << "armor.id: " << armor.id << std::endl;
             if(armor.id == ignore_armors_[i])
             {
                 return true;

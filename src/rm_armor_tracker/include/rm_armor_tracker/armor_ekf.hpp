@@ -12,10 +12,14 @@ public:
     void motion_model(cv::Mat &state);
     cv::Mat observation_model(cv::Mat &state);
     cv::Mat jacob_f();
+    cv::Mat jacob_h();
     void EKF_predict();
     void EKF_update(cv::Mat &Z);
 
     double dt_;
+
+    double q_xyz_;
+    double r_xyz_;
 
     cv::Mat state_;
     cv::Mat P_;

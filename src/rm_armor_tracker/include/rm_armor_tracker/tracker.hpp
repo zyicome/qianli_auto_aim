@@ -2,11 +2,22 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "angles/angles.h"
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2/convert.h>
+
+#include <rclcpp/logger.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
 #include "rm_msgs/msg/armor.hpp"
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/point_stamped.hpp"
+#include "geometry_msgs/msg/quaternion.hpp"
 
 #include "ekf.hpp"
+#include "armor_ekf.hpp"
 
 struct TrackerArmor
 {
@@ -38,8 +49,8 @@ public:
     double max_match_distance_;
     double max_match_yaw_diff_;
 
-    double tracking_thres_;
-    double lost_thres_;
+    int tracking_thres_;
+    int lost_thres_;
 
     double dz_;
     double another_r_;
@@ -51,7 +62,7 @@ public:
     cv::Mat armor_tracking_state_; // 通过EKF预测后的追踪状态
     cv::Mat armor_target_state_; // 通过EKF更新后的目标状态
 
-    std::unique_ptr<TrackerArmor> tracker_armor_; // 追踪的装甲板信息,包含真实装甲板信息和追踪状态
-    std::shared_ptr<EKF> armor_ekf_;
+    std::shared_ptr<TrackerArmor> tracker_armor_; // 追踪的装甲板信息,包含真实装甲板信息和追踪状态
+    std::shared_ptr<ArmorEKF> armor_ekf_;
     std::shared_ptr<EKF> ekf_;
 };

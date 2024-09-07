@@ -1,17 +1,32 @@
 #include "tracker.hpp"
 
+Tracker::Tracker()
+{
+
+}
+
 Tracker::Tracker(double max_match_distance, double max_match_yaw_diff)
 {
     std::cout << "Tracker constructed" << std::endl;
     this->max_match_distance_ = max_match_distance;
     this->max_match_yaw_diff_ = max_match_yaw_diff;
-    tracker_armor_ = std::make_unique<TrackerArmor>();
+    this->tracking_thres_ = 0;
+    this->lost_thres_ = 0;
+    this->dz_ = 0.0;
+    this->another_r_ = 0.0;
+    this->last_yaw_ = 0.0;
+    this->tracking_state_ = cv::Mat::zeros(9, 1, CV_64F);
+    this->target_state_ = cv::Mat::zeros(9, 1, CV_64F);
+    this->armor_tracking_state_ = cv::Mat::zeros(4, 1, CV_64F);
+    this->armor_target_state_ = cv::Mat::zeros(4, 1, CV_64F);
+    tracker_armor_ = std::make_shared<TrackerArmor>();
     tracker_armor_->armor_id = -1;
     tracker_armor_->armor_num = 0;
     tracker_armor_->detect_count = 0;
     tracker_armor_->lost_count = 0;
     tracker_armor_->armor_name = "";
     tracker_armor_->status = "LOST";
+    
 }
 
 void Tracker::tracker_init(const rm_msgs::msg::Armor::SharedPtr armor_msg)
@@ -53,11 +68,12 @@ void Tracker::tracker_init(const rm_msgs::msg::Armor::SharedPtr armor_msg)
         tracker_armor_->armor_name = "base_big-1";
     }
     tracker_armor_->status = "DETECTING";
-    tracker_armor_->armor_pose = armor_msg->pose;
+    tracker_armor_->armor_pose.pose.position = armor_msg->pose.position;
+    tracker_armor_->armor_pose.pose.orientation = armor_msg->pose.orientation;
 
     EKF_init(armor_msg);
     ArmorEKF_init(armor_msg);
-    RCLCPP_DEBUG(rclcpp::get_logger("armor_tracker_node"), "Init EKF!");
+    std::cout << "Tracker initialized!" << std::endl;
 }
 
 void Tracker::EKF_init(const rm_msgs::msg::Armor::SharedPtr &armor_msg)
@@ -65,22 +81,22 @@ void Tracker::EKF_init(const rm_msgs::msg::Armor::SharedPtr &armor_msg)
     double xa = armor_msg->pose.position.x;
     double ya = armor_msg->pose.position.y;
     double za = armor_msg->pose.position.z;
-    last_yaw = 0;
+    last_yaw_ = 0;
     double yaw = orientationToYaw(armor_msg->pose.orientation);
     
     cv::Mat state = (cv::Mat_<double>(9,1) << 0, 0, 0, 0, 0, 0, 0, 0, 0);
     double r = 0.26;
     double xc = xa + r * cos(yaw);
     double yc = ya + r * sin(yaw);
-    dz = 0.0;
-    another_r = r;
+    dz_ = 0.0;
+    another_r_ = r;
     state.at<double>(0,0) = xc;
     state.at<double>(2,0) = yc;
     state.at<double>(4,0) = za;
     state.at<double>(6,0) = yaw;
     state.at<double>(8,0) = r;
 
-    ekf_.set_state(state);
+    ekf_->set_state(state);
 }
 
 void Tracker::ArmorEKF_init(const rm_msgs::msg::Armor::SharedPtr &armor_msg)
@@ -93,7 +109,7 @@ void Tracker::ArmorEKF_init(const rm_msgs::msg::Armor::SharedPtr &armor_msg)
     state.at<double>(0,0) = xa;
     state.at<double>(2,0) = ya;
 
-    armor_ekf_.set_state(state);
+    armor_ekf_->set_state(state);
 }
 
 void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
@@ -109,18 +125,18 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
     if(armor_msg->color != 2)
     {
         // Find the closest armor with the same id
-        my_msgs::msg::Armor same_id_armor;
-        int same_id_armor_count = 0;
+        rm_msgs::msg::Armor same_id_armor;
         cv::Point3d same_id_armor_position;
-        sane_id_armor_position = get_armor_position(tracking_state_);
+        same_id_armor_position = get_armor_position(tracking_state_);
         double position_diff = cv::norm(same_id_armor_position - cv::Point3d(armor_msg->pose.position.x, armor_msg->pose.position.y, armor_msg->pose.position.z));
         double yaw_diff = abs(orientationToYaw(armor_msg->pose.orientation) - tracking_state_.at<double>(6,0));
         if(position_diff < max_match_distance_ && yaw_diff < max_match_yaw_diff_)
         {
             is_matched = true;
-            tracker_armor_->pose = armor_msg->pose;
-            auto armor_pose_position = tracker_armor_->pose.position;
-            auto armor_pose_orientation_yaw = orientationToYaw(tracker_armor_->pose.orientation);
+            tracker_armor_->armor_pose.pose.position = armor_msg->pose.position;
+            tracker_armor_->armor_pose.pose.orientation = armor_msg->pose.orientation;
+            auto armor_pose_position = tracker_armor_->armor_pose.pose.position;
+            auto armor_pose_orientation_yaw = orientationToYaw(tracker_armor_->armor_pose.pose.orientation);
             cv::Mat Z = (cv::Mat_<double>(4,1) << armor_pose_position.x, armor_pose_position.y, armor_pose_position.z, armor_pose_orientation_yaw);
             ekf_->EKF_update(Z);
             target_state_ = ekf_->state_;
@@ -157,7 +173,7 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
             // 如果有且仅有一个具有相同ID的装甲板（same_id_armors_count == 1），
             // 并且偏航角差异大于预定义的最大匹配偏航角差异（max_match_yaw_diff_），
             // 则认为目标正在旋转且装甲板发生了跳变。
-            handleArmorJump(same_id_armor);
+            handleArmorJump(*tracker_armor_);
         }
         else
         {
@@ -168,56 +184,56 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
         // Prevent radius from spreading
         if (target_state_.at<double>(8,0) < 0.12) {
             target_state_.at<double>(8,0) = 0.12;
-            ekf_.setState(target_state_);
+            ekf_->set_state(target_state_);
         } else if (target_state_.at<double>(8,0) > 0.4) {
             target_state_.at<double>(8,0) = 0.4;
-            ekf_.setState(target_state_);
+            ekf_->set_state(target_state_);
         }
+    }
 
         // Tracking state machine
-        if(tracking_armor_->status == "DETECTING")
+        if(tracker_armor_->status == "DETECTING")
         {
             if(is_matched)
             {
-                tracking_armor_->detect_count++;
-                if(tracking_armor_->detect_count > tracking_thres_)
+                tracker_armor_->detect_count++;
+                if(tracker_armor_->detect_count > tracking_thres_)
                 {
-                    tracking_armor_->detect_count = 0;
-                    tracking_armor_->status = "TRACKING";
+                    tracker_armor_->detect_count = 0;
+                    tracker_armor_->status = "TRACKING";
                 }
             }
             else
             {
-                tracking_armor_->detect_count = 0;
-                tracking_armor_->status = "LOST";
+                tracker_armor_->detect_count = 0;
+                tracker_armor_->status = "LOST";
             }
         }
-        else if(tracking_armor_->status == "TRACKING")
+        else if(tracker_armor_->status == "TRACKING")
         {
             if(is_matched == false)
             {
-                tracking_armor_->lost_count++;
-                tracking_armor_->status == "LOSTING";
+                tracker_armor_->lost_count++;
+                tracker_armor_->status == "LOSTING";
             }
         }
-        else if(tracking_armor_->status == "LOSTING")
+        else if(tracker_armor_->status == "LOSTING")
         {
             if(is_matched == false)
             {
-                tracking_armor_->lost_count++;
-                if(tracking_armor_->lost_count > lost_thres_)
+                tracker_armor_->lost_count++;
+                if(tracker_armor_->lost_count > lost_thres_)
                 {
-                    tracking_armor_->lost_count = 0;
-                    tracking_armor_->status = "LOST";
+                    tracker_armor_->lost_count = 0;
+                    tracker_armor_->status = "LOST";
                 }
             }
             else
             {
-                tracking_armor_->lost_count = 0;
-                tracking_armor_->status = "TRACKING";
+                tracker_armor_->lost_count = 0;
+                tracker_armor_->status = "TRACKING";
             }
         }
-    }
 }
 
 void Tracker::handleArmorJump(const TrackerArmor &armor)
@@ -225,43 +241,43 @@ void Tracker::handleArmorJump(const TrackerArmor &armor)
     // armor为这一次检测到的真实装甲板信息
     // target_state_未更新，为上一次的装甲板状态
     // tracking_state_为根据上一次装甲板信息得到的预测状态
-    double yaw = orientationToYaw(armor.pose.orientation);
+    double yaw = orientationToYaw(armor.armor_pose.pose.orientation);
     target_state_.at<double>(6,0) = yaw;
     // Only 4 armors has 2 radius and height
     if(armor.armor_num == 4)
     {
-        dz_ = target_state_.at<double>(4,0) - armor.pose.position.z;
-        target_state_.at<double>(4,0) = armor.pose.position.z;
+        dz_ = target_state_.at<double>(4,0) - armor.armor_pose.pose.position.z;
+        target_state_.at<double>(4,0) = armor.armor_pose.pose.position.z;
         std::swap(target_state_.at<double>(8,0), another_r_);
     }
     RCLCPP_WARN(rclcpp::get_logger("armor_tracker_node"), "Armor jump!");
 
     // 切换装甲板，重新初始化ArmorEKF
-    double xa = armor.pose.position.x;
-    double ya = armor.pose.position.y;
+    double xa = armor.armor_pose.pose.position.x;
+    double ya = armor.armor_pose.pose.position.y;
 
     cv::Mat state = (cv::Mat_<double>(4,1) << xa, 0, ya, 0);
     armor_ekf_->set_state(state);
 
     // If position difference is larger than max_match_distance_,
     // take this case as the ekf diverged, reset the state
-    cv::Point3d current_armor_position = cv::Point3d(armor.pose.position.x, armor.pose.position.y, armor.pose.position.z);
+    cv::Point3d current_armor_position = cv::Point3d(armor.armor_pose.pose.position.x, armor.armor_pose.pose.position.y, armor.armor_pose.pose.position.z);
     cv::Point3d target_armor_position = get_armor_position(target_state_);
     double distance_position_diff = cv::norm(current_armor_position - target_armor_position);
     if(distance_position_diff > max_match_distance_)
     {
         RCLCPP_WARN(rclcpp::get_logger("armor_tracker_node"), "EKF diverged!");
         double r = target_state_.at<double>(8,0);
-        target_state_.at<double>(0,0) = armor.pose.position.x + r * cos(yaw);
+        target_state_.at<double>(0,0) = armor.armor_pose.pose.position.x + r * cos(yaw);
         target_state_.at<double>(1,0) = 0.0;
-        target_state_.at<double>(2,0) = armor.pose.position.y + r * sin(yaw);
+        target_state_.at<double>(2,0) = armor.armor_pose.pose.position.y + r * sin(yaw);
         target_state_.at<double>(3,0) = 0.0;
-        target_state_.at<double>(4,0) = armor.pose.position.z;
+        target_state_.at<double>(4,0) = armor.armor_pose.pose.position.z;
         target_state_.at<double>(5,0) = 0.0;
         RCLCPP_ERROR(rclcpp::get_logger("armor_tracker"), "Reset State!");
     }
 
-    ekf_.set_state(target_state_);
+    ekf_->set_state(target_state_);
 }
 
 
@@ -282,7 +298,7 @@ double Tracker::orientationToYaw(const geometry_msgs::msg::Quaternion & q)
   return yaw;
 }
 
-cv::Point3d Tracker::get_armor_position(const cv:Mat &state)
+cv::Point3d Tracker::get_armor_position(const cv::Mat &state)
 {
     double xc = state.at<double>(0,0);
     double yc = state.at<double>(2,0);
