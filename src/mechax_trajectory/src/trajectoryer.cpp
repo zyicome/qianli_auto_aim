@@ -7,17 +7,6 @@
 namespace rm_trajectory
 {
 
-//两个内联函数，用于牛顿迭代法，第一个为f(x)，第二个为f'(x)
-inline float ft0(float t0,float randa,float tan,float z0,float v0)
-{
-    return (g / randa) * ((1/randa) * log(1 - randa * t0) + t0) + tan - z0;
-}
-
-inline float f_t0(float t0,float randa,float tan,float z0,float v0)
-{
-    return (g / randa) * (-randa / randa / (1 - randa * t0) + 1) + (v0 * v0 * t0 / tan);
-}
-
 //两个内联函数，用于二次空气阻力模型的牛顿迭代法，第一个为z(x),第二个为z'(x)
 inline float z0(float vz0, float z0, float randa, float alpha, float beta)
 {
@@ -37,7 +26,7 @@ inline float z0(float vz0, float z0, float randa, float alpha, float beta)
     return z;
 }
 
-inline float z_0(float vz0, float z0, float randa,float alpha,float beta, float alpha_angle, float beta_angle)
+inline float z_0(float vz0, float randa,float alpha,float beta, float alpha_angle, float beta_angle)
 {
     float z = 0.0;
     if(vz0 <= 0)
@@ -159,46 +148,6 @@ int Trajectoryer::no_resistance_model(const float &object_x,const float &object_
 
 //@param: object_x, object_y, object_z, v0, randa
 // 根据传入的相对于枪管坐标系下敌方的坐标xyz，在结合子弹速度和空气阻力系数，计算出需要的pitch角度和飞行时间
-// 单空气阻力模型，运用牛顿迭代法，迭代10次，精度为0.001
-//@result: angle_pitch, fly_t (成员变量，刷新得到)
-//@return: 1:计算成功 0:无法迭代到结果精度或者迭代次数过多
-int Trajectoryer::single_resistance_model(const float &object_x,const float &object_y,const float &object_z,const float &v0,const float &randa)
-{
-    float distance = sqrtf(pow(object_x, 2) + pow(object_y, 2));
-    if(!no_resistance_model(object_x, object_y, object_z, v0))
-    {
-        return 0;
-    }
-    float diedai_t = 0.0;
-    float tan = 0.0;
-    for(int i = 1; i <= 10; i++)
-    {
-        tan = sqrt(v0 * v0 * fly_t * fly_t - distance * distance);
-        if(angle_pitch < 0)
-        {
-            tan = -tan;
-        }
-        diedai_t = fly_t - (ft0(fly_t, randa, tan, object_z, v0) / f_t0(fly_t, randa, tan, object_z, v0));
-        fly_t = diedai_t;
-        if(i == 10)
-        {
-            fabs(ft0(fly_t, randa, tan, object_z, v0)) > 0.01;
-            RCLCPP_INFO(get_logger(), "the mistake is too large!");
-            return 0;
-        }
-        if(fabs(ft0(fly_t, randa, tan, object_z, v0)) < 0.001)
-        {
-            cout << "di"  << i << "end";
-            break;
-        }
-    }
-    angle_pitch = acos(distance / v0 / fly_t);
-    return 1;
-}
-
-
-//@param: object_x, object_y, object_z, v0, randa
-// 根据传入的相对于枪管坐标系下敌方的坐标xyz，在结合子弹速度和空气阻力系数，计算出需要的pitch角度和飞行时间
 // 单空气阻力模型
 //@result: angle_pitch, fly_t  (成员变量，刷新得到)
 //@return: 1:计算成功 0:计算失败d
@@ -224,7 +173,6 @@ int Trajectoryer::single_resistance_model_two(const float &object_x,const float 
     float delta = pow(a,2) - 4*b*(object_z+b);
     float tan_angle_1 = (a+sqrt(delta)) / (2*b);
     float tan_angle_2 = (a-sqrt(delta)) / (2*b);
-    float angle_init = atan2(object_z, distance);	//rad弧度，补偿前的角度
     float angle_actual_1 = -atan(tan_angle_1);
     float angle_actual_2 = -atan(tan_angle_2);//rad
     angle_pitch = (fabs(angle_actual_1 - now_pitch) > fabs(angle_actual_2 - now_pitch)) ? angle_actual_2 : angle_actual_1;//取绝对值小的那个
@@ -269,7 +217,7 @@ int Trajectoryer::two_resistance_model(const float &object_x,const float &object
         {
             break;
         }
-        z2 = z_0(vz0, object_z, randa, alpha, beta, alpha_angle, beta_angle);
+        z2 = z_0(vz0, randa, alpha, beta, alpha_angle, beta_angle);
         diedai_angle = angle_pitch - z1 / z2;
         angle_pitch = diedai_angle;
         if(i == 19)
@@ -302,7 +250,6 @@ int Trajectoryer::two_resistance_model(const float &object_x,const float &object
 //@return: 1:可以击打 0:无法击打到目标
 bool Trajectoryer::is_solvable(const float &object_x,const float &object_y,const float &object_z,const float &v0, float &alpha)
 {
-    float l = sqrtf(pow(object_x, 2) + pow(object_y, 2) + pow(object_z, 2));
     float distance = sqrtf(pow(object_x, 2) + pow(object_y, 2));
     float process = object_z  + g * pow(distance, 2) /  pow(v0, 2);
     if(distance >= process)
@@ -451,10 +398,6 @@ int Trajectoryer::solve_trajectory()
     {
         return 0;
     }*/
-    /*if(single_resistance_model(object_x, object_y, object_z, v0, randa)==0）
-    {
-        return 0;
-    }*/
     /*if(single_resistance_model_two(object_x, object_y, object_z, v0, randa) == 0)
     {
         return 0;
@@ -494,7 +437,6 @@ void Trajectoryer::test()
     now_pitch = 20 / 57.3f;
     now_yaw = 10 / 57.3f;
     no_resistance_model(object_x, object_y, object_z, v0);
-    single_resistance_model(object_x, object_y, object_z, v0, randa);
     single_resistance_model_two(object_x, object_y, object_z, v0, randa);
     armor_num = 4;
     yaw = 10 / 53.7f;

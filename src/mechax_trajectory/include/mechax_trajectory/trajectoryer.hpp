@@ -50,8 +50,6 @@ public:
 
     int no_resistance_model(const float &object_x,const float &object_y,const float &object_z,const float &v0);
 
-    int single_resistance_model(const float &object_x,const float &object_y,const float &object_z,const float &v0,const float &randa);
-
     int single_resistance_model_two(const float &object_x,const float &object_y,const float &object_z,const float &v0,const float &randa);
 
     int two_resistance_model(const float &object_x,const float &object_y,const float &object_z,const float &v0,const float &randa);
