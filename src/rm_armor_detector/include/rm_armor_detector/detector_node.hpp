@@ -12,8 +12,8 @@
 #include <tf2/convert.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-#include "rm_msgs/msg/armors.hpp"
 #include "rm_msgs/msg/armor.hpp"
+#include "rm_msgs/msg/status.hpp"
 
 #include "openvino_detector.hpp"
 #include "pnp_solver.hpp"
@@ -40,6 +40,7 @@ public:
     ArmorDetectorNode(const rclcpp::NodeOptions & options);
     void parameters_init();
     void camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
+    void status_callback(const rm_msgs::msg::Status::SharedPtr msg);
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
     void test();
 
@@ -50,6 +51,7 @@ public:
     bool get_is_ignored(const Armor &armor, const std::vector<cv::Point2f> &four_points);
     DecisionArmor decide_armor_shoot(const std::vector<DecisionArmor> &decision_armors);
 
+    bool is_rune_;
     int is_debug_;
     int detect_color_;
     double MIN_BIG_ARMOR_RATIO_;
@@ -70,6 +72,7 @@ public:
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
+    rclcpp::Subscription<rm_msgs::msg::Status>::SharedPtr status_sub_;
 
     //-------------------------------------------------------------------------------------------
     // debug

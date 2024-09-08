@@ -25,6 +25,7 @@
 #include "rm_msgs/msg/target.hpp"
 #include "rm_msgs/msg/send_serial.hpp"
 #include "rm_msgs/msg/receive_serial.hpp"
+#include "rm_msgs/msg/status.hpp"
 
 
 namespace rm_serial_driver
@@ -80,6 +81,7 @@ private:
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr latency_pub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
   rclcpp::Publisher<rm_msgs::msg::ReceiveSerial>::SharedPtr serial_pub_;
+  rclcpp::Publisher<rm_msgs::msg::Status>::SharedPtr status_pub_;
 
   std::thread receive_thread_;
 

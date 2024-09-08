@@ -53,6 +53,14 @@ def generate_launch_description():
         extra_arguments=[{'use_intra_process_comms': True}],
     )
 
+    rune_node = ComposableNode(
+        package='rm_rune',
+        plugin='qianli_rm_rune::RuneNode',
+        name='rm_rune',
+        parameters=[node_params],
+        extra_arguments=[{'use_intra_process_comms': True}],
+    )
+
     tracker_node = Node(
         package='rm_armor_tracker',
         executable='rm_armor_tracker_node',
@@ -85,6 +93,7 @@ def generate_launch_description():
         composable_node_descriptions=[
             camera_node,
             detector_node,
+            rune_node,
         ],
         output='both',
     )

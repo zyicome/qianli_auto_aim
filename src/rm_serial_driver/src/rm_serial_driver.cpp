@@ -40,6 +40,7 @@ RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions & options)
   // Create Publisher
   latency_pub_ = this->create_publisher<std_msgs::msg::Float64>("/latency", 10);
   serial_pub_ = this->create_publisher<rm_msgs::msg::ReceiveSerial>("/angle/init", 10);
+  status_pub_ = this->create_publisher<rm_msgs::msg::Status>("/status", 10);
 
   // Detect parameter client
   detector_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "armor_detector");
@@ -229,8 +230,12 @@ void RMSerialDriver::receiveData()
                       receive_serial_msg_.v0 = packet.v0;
                       receive_serial_msg_.motor_speed = packet.motor_speed;
                       receive_serial_msg_.serial_time = timestamp_offset_;
-                      receive_serial_msg_.is_rune = packet.is_rune;
                       serial_pub_->publish(receive_serial_msg_);
+
+                      rm_msgs::msg::Status status;
+                      status.is_rune = packet.is_rune;
+                      status.is_rune = false;
+                      status_pub_->publish(status);
 
                       total_count++;
                       if(total_count >= 100)

@@ -75,8 +75,10 @@ void ArmorDetectorNode::parameters_init()
     camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
         "/camera_info", rclcpp::SensorDataQoS(), std::bind(&ArmorDetectorNode::camera_info_callback, this, std::placeholders::_1));
 
-    image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        "/image_raw", rclcpp::SensorDataQoS(), std::bind(&ArmorDetectorNode::image_callback, this, std::placeholders::_1));
+    is_rune_ = true; // 默认为打符模式，才能刷新接受者接受图片消息, 即开始默认自己不能接受图片消息
+    status_sub_ = this->create_subscription<rm_msgs::msg::Status>(
+        "/status", rclcpp::SensorDataQoS(), std::bind(&ArmorDetectorNode::status_callback, this, std::placeholders::_1));
+
     RCLCPP_INFO(this->get_logger(), "Finished init parameters successfully!");
 }
 
@@ -144,6 +146,24 @@ void ArmorDetectorNode::camera_info_callback(const sensor_msgs::msg::CameraInfo:
     pnp_solver_->set_matrix(camera_width_, camera_height_, camera_matrix_, distortion_coefficients_);
     camera_info_sub_.reset();
     RCLCPP_INFO(this->get_logger(), "Finished receive camera info successfully!");
+}
+
+void ArmorDetectorNode::status_callback(const rm_msgs::msg::Status::SharedPtr msg)
+{
+    if(msg->is_rune == is_rune_)
+    {
+        return;
+    }
+    is_rune_ = msg->is_rune;
+    if(is_rune_ == true)
+    {
+        image_sub_.reset();
+    }
+    else
+    {
+        image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+            "/image_raw", rclcpp::SensorDataQoS(), std::bind(&ArmorDetectorNode::image_callback, this, std::placeholders::_1));
+    }
 }
 
 void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
