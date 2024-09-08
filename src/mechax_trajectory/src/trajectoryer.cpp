@@ -49,9 +49,6 @@ Trajectoryer::Trajectoryer(const rclcpp::NodeOptions & options) : Node("trajecto
 {
     parameters_init();
 
-    target_sub_ = this->create_subscription<rm_msgs::msg::Target>(
-                  "/tracker/target", rclcpp::SensorDataQoS(), std::bind(&Trajectoryer::target_callback, this, std::placeholders::_1));
-
     angle_sub_ = this->create_subscription<rm_msgs::msg::ReceiveSerial>(
         "/angle/init", 10, std::bind(&Trajectoryer::angle_callback, this, std::placeholders::_1));
 
@@ -74,6 +71,15 @@ void  Trajectoryer::parameters_init()
 {
     //----------------------------------------------------
     is_hero = false; // 根据情况自己修改，英雄大弹丸为1,步兵小弹丸为0
+    this->declare_parameter("is_hero", false);
+    is_hero = this->get_parameter("is_hero").as_bool();
+    
+    std::cout << "is_hero: " << is_hero << std::endl;
+
+    this->declare_parameter("max_yaw_diff", 0.5);
+    max_yaw_diff = this->get_parameter("max_yaw_diff").as_double(); //现在的yaw与计算的需求yaw的最大容忍差值，可根据需求更改
+
+    std::cout << "max_yaw_diff: " << max_yaw_diff << std::endl;
     //----------------------------------------------------
     if(is_hero)
     {
@@ -106,9 +112,6 @@ void  Trajectoryer::parameters_init()
     //****************************************************
     //****************************************************
     fly_t = 0.5; // s
-    //摄像头相对于云台的偏置,一般改z_bias即可
-    y_bias = 0.0; // m
-    z_bias = 0.00; // m
     //****************************************************
     is_can_hit = false;
     distance = 0.0;
@@ -117,6 +120,25 @@ void  Trajectoryer::parameters_init()
     motor_bias_time = 0.0;
     serial_bias_time = 0.002;
     latency_bias_time = 0.003;
+    //****************************************************
+    // tf2
+    // Subscriber with tf2 message_filter
+    // tf2 relevant
+    tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+    // Create the timer interface before call to waitForTransform,
+    // to avoid a tf2_ros::CreateTimerInterfaceException exception
+    auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
+        this->get_node_base_interface(), this->get_node_timers_interface());
+    tf2_buffer_->setCreateTimerInterface(timer_interface);
+    tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
+    // subscriber and filter
+    target_sub_.subscribe(this, "/tracker/target", rmw_qos_profile_sensor_data);
+    target_frame_ = "shoot";
+    tf2_filter_ = std::make_shared<tf2_filter>(
+        target_sub_, *tf2_buffer_, target_frame_, 10, this->get_node_logging_interface(),
+        this->get_node_clock_interface(), std::chrono::duration<int>(1));
+    // Register a callback with tf2_ros::MessageFilter to be called when transforms are available
+    tf2_filter_->registerCallback(&Trajectoryer::targetCallback, this);
     }
 
 //@param: object_x, object_y, object_z, v0
@@ -270,10 +292,12 @@ int Trajectoryer::solve_trajectory()
     float need_t = fly_t + latency_bias_time + motor_bias_time + serial_bias_time;
     if(std::isnan(need_t))
     {
+        std::cout << "need_t is nan" << std::endl;
         need_t = 0.27;
     }
     if(std::isnan(fly_t))
     {
+        std::cout << "fly_t is nan" << std::endl;
         fly_t = 0.14;
     }
     float yaw_delay = need_t * v_yaw;
@@ -282,21 +306,24 @@ int Trajectoryer::solve_trajectory()
     int i = 0;
     int idx = 0;
 //进行预测，预测出击打目标的位置
-    ros_x = ros_x + vx * need_t;
-    ros_y = ros_y + vy * need_t;
-    ros_z = ros_z + vz * need_t;
+    car_ros_x = car_ros_x + car_vx * need_t;
+    car_ros_y = car_ros_y + car_vy * need_t;
+    armor_ros_x = armor_ros_x + armor_vx * need_t;
+    armor_ros_y = armor_ros_y + armor_vy * need_t;
+    armor_ros_z = armor_ros_z + armor_vz * need_t;
 //----------------------------------------------
 //----------------------------------------------
 //进行选板，选择最适合击打的装甲板
+    bool is_change_armor = false;
     if(armor_num == 2)
     {
         for (i = 0; i<2; i++) {
         result position_result;
         float tmp_yaw = tar_yaw + i * M_PI;
         float r = r_1;
-        position_result.x = ros_x - r*cos(tmp_yaw);
-        position_result.y = ros_y - r*sin(tmp_yaw);
-        position_result.z = ros_z;
+        position_result.x = car_ros_x - r*cos(tmp_yaw);
+        position_result.y = car_ros_y - r*sin(tmp_yaw);
+        position_result.z = armor_ros_z;
         position_result.yaw = tmp_yaw;
         results.push_back(position_result);
         }
@@ -318,9 +345,9 @@ int Trajectoryer::solve_trajectory()
         result position_result;
         float tmp_yaw = tar_yaw + i * 2.0 * M_PI/3.0;  // 2/3PI
         float r =  (r_1 + r_2)/2;   //理论上r1=r2 这里取个平均值
-        position_result.x = ros_x - r*cos(tmp_yaw);
-        position_result.y = ros_y - r*sin(tmp_yaw);
-        position_result.z = ros_z;
+        position_result.x = car_ros_x - r*cos(tmp_yaw);
+        position_result.y = car_ros_y - r*sin(tmp_yaw);
+        position_result.z = armor_ros_z;
         position_result.yaw = tmp_yaw;
         results.push_back(position_result);
         }
@@ -347,9 +374,9 @@ int Trajectoryer::solve_trajectory()
         result position_result;
         float tmp_yaw = tar_yaw + i * M_PI/2.0;
         float r = use_1 ? r_1 : r_2;
-        position_result.x = ros_x - r*cos(tmp_yaw);
-        position_result.y = ros_y - r*sin(tmp_yaw);
-        position_result.z = use_1 ? ros_z : ros_z + dz;
+        position_result.x = car_ros_x - r*cos(tmp_yaw);
+        position_result.y = car_ros_y - r*sin(tmp_yaw);
+        position_result.z = use_1 ? armor_ros_z : armor_ros_z + dz;
         position_result.yaw = tmp_yaw;
         results.push_back(position_result);
         use_1 = !use_1;
@@ -366,13 +393,50 @@ int Trajectoryer::solve_trajectory()
             }
         }
     }
+    if(idx != 0)
+    {
+        is_change_armor = true;
+        std::cout << "mechax_trajectory change armor" << std::endl;
+    }
 //得到results :存放了所有装甲板的位置信息 
 //得到idx :选择的装甲板的编号
 //----------------------------------------------
-    float object_x = results.at(idx).x;
-    float object_y = results.at(idx).y + y_bias;
-    float object_z = results.at(idx).z + z_bias;
+    float object_x;
+    float object_y;
+    float object_z;
+    if(is_change_armor)
+    {
+        object_x = results.at(idx).x;
+        object_y = results.at(idx).y;
+        object_z = results.at(idx).z;
+    }
+    else
+    {
+        object_x = armor_ros_x;
+        object_y = armor_ros_y;
+        object_z = armor_ros_z;
+    }
 //----------------------------------------------
+    // 应用tf2将坐标系从odom下转换到shoot下
+    geometry_msgs::msg::PointStamped ps;
+    ps.header.stamp = armor_time;
+    ps.header.frame_id = "odom";
+    ps.point.x = object_x;
+    ps.point.y = object_y;
+    ps.point.z = object_z;
+    try
+    {
+        geometry_msgs::msg::PointStamped result;
+        result.point = tf2_buffer_->transform(ps, target_frame_).point;
+        object_x = result.point.x;
+        object_y = result.point.y;
+        object_z = result.point.z;
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+        return 0;
+    }
 //---------------------------------------------
     // 用于三维可视化，与计算没有什么影响,后期可以删除
     visualization_msgs::msg::Marker aiming_point_;
@@ -441,16 +505,16 @@ void Trajectoryer::test()
     armor_num = 4;
     yaw = 10 / 53.7f;
     v_yaw = 0.2;
-    vx = 0.4;
-    ros_x = 10;
+    car_vx = 0.4;
+    car_ros_x = 10;
     r_1 = 0.4;
     r_2 = 0.4;
-    object_x = ros_x - r_1 *cos(now_yaw);
-    vy = 0.3;
-    ros_y = 1;
-    vz = 0.2;
-    ros_z = 2;
-    object_z = ros_x - r_1*cos(now_pitch);
+    object_x = car_ros_x - r_1 *cos(now_yaw);
+    car_vy = 0.3;
+    car_ros_y = 1;
+    armor_vz = 0.2;
+    armor_ros_z = 2;
+    object_z = armor_ros_z - r_1*cos(now_pitch);
     dz = 0.1;
     solve_trajectory();
 }
@@ -459,24 +523,28 @@ void Trajectoryer::test()
 //得到通过追踪到的装甲板相对于云台的信息
 //如果追踪到目标并且开启了自瞄模式，则解算弹道，得到需要的pitch和yaw角度
 //通过SendSerial信息类型的result发布给serial_driver
-void Trajectoryer::target_callback(const rm_msgs::msg::Target msg)
+void Trajectoryer::targetCallback(const rm_msgs::msg::Target msg)
 {
+    armor_time = msg.header.stamp;
     is_tracking = msg.tracking;
     id = msg.id;
     armor_num = msg.armor_num;
+    armor_ros_x = msg.armor_position.x;
+    armor_ros_y = msg.armor_position.y;
+    armor_vx = msg.armor_velocity.x;
+    armor_vy = msg.armor_velocity.y;
+
     yaw = msg.yaw;
     v_yaw = msg.v_yaw;
-    vx = msg.car_velocity.x;
-    ros_x = msg.car_position.x;
-    vy = msg.car_velocity.y;
-    ros_y = msg.car_position.y;
-    vz = msg.car_velocity.z;
-    ros_z = msg.car_position.z;
+    car_vx = msg.car_velocity.x;
+    car_ros_x = msg.car_position.x;
+    car_vy = msg.car_velocity.y;
+    car_ros_y = msg.car_position.y;
+    armor_ros_z = msg.car_position.z;
+    armor_vz = msg.car_velocity.z;
     r_1 = msg.radius_1;
     r_2 = msg.radius_2;
     dz = msg.dz;
-
-    if (is_rune) return;
 
     if(is_tracking)
     {
@@ -493,7 +561,7 @@ void Trajectoryer::target_callback(const rm_msgs::msg::Target msg)
             result_pub_->publish(result);
             return;
         }
-            result.header.frame_id = "odom";
+            result.header.frame_id = "shoot";
             //--------------------------------------------
             //弧度制转角度制
             float send_pitch = -angle_pitch * 57.3f;
@@ -505,7 +573,7 @@ void Trajectoryer::target_callback(const rm_msgs::msg::Target msg)
             if(abs(send_yaw - now_yaw * 57.3f) > max_yaw_diff)
             {
                 is_can_hit = false;
-                std::cout << "Can not hit target!!!" << std::endl;
+                //std::cout << "Can not hit target!!!" << std::endl;
             }
             else
             {
@@ -595,12 +663,9 @@ void Trajectoryer::angle_callback(const rm_msgs::msg::ReceiveSerial msg)
     {
         v0 = msg.v0;
     }
-
-    is_rune = msg.is_rune;
 }
 
 void Trajectoryer::power_rune_callback(const geometry_msgs::msg::PointStamped msg) {
-    if (!is_rune) return;
     two_resistance_model(
             msg.point.x,
             msg.point.y,
@@ -616,9 +681,7 @@ void Trajectoryer::power_rune_callback(const geometry_msgs::msg::PointStamped ms
     float send_pitch = -angle_pitch * 57.3f;
     float send_yaw = 0.0;
     send_yaw = (angle_yaw) * 57.3f;
-    //float send_yaw = (angle_yaw) * 57.3f;
     //--------------------------------------------
-    float max_yaw_diff = 0.5; //现在的yaw与计算的需求yaw的最大容忍差值，可根据需求更改
     if(abs(send_yaw - now_yaw * 57.3f) > max_yaw_diff)
     {
         is_can_hit = false;

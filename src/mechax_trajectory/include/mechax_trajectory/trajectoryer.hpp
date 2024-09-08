@@ -5,15 +5,16 @@
 #include "visualization_msgs/msg/marker.hpp"
 #include <tf2_ros/transform_broadcaster.h>
 
-#include <geometry_msgs/msg/transform_stamped.hpp>
-
 #include <geometry_msgs/msg/point_stamped.hpp>
 
+#include <message_filters/subscriber.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/create_timer_ros.h>
 #include <tf2_ros/message_filter.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+
+
 
 #include <std_msgs/msg/float64.hpp>
 
@@ -26,6 +27,7 @@ namespace rm_trajectory
 {
 
 using namespace std;
+using tf2_filter = tf2_ros::MessageFilter<rm_msgs::msg::Target>;
 
 const float g  = 9.8;
 #define ARMOR_NUM_BALANCE 2;
@@ -60,7 +62,7 @@ public:
 
     void test();
 
-    void target_callback(const rm_msgs::msg::Target msg);
+    void targetCallback(const rm_msgs::msg::Target msg);
 
     void angle_callback(const rm_msgs::msg::ReceiveSerial msg);
 
@@ -73,8 +75,6 @@ public:
     float angle_yaw;
     float distance;
     float fly_t; // m
-    float y_bias;
-    float z_bias;
     //------------------
     float now_pitch;
     float now_yaw;
@@ -84,18 +84,23 @@ public:
     // 敌方云台中心在我方云台中心坐标系下的坐标
     float yaw;
     float v_yaw;
-    float vx;
-    float ros_x;
-    float vy;
-    float ros_y;
-    float vz;
-    float ros_z;
+    float armor_ros_x;
+    float car_ros_x;
+    float armor_vx;
+    float car_vx;
+    float armor_ros_y;
+    float car_ros_y;
+    float armor_vy;
+    float car_vy;
+    float armor_ros_z;
+    float armor_vz;
     float r_1;
     float r_2;
     float dz;
     bool is_tracking;
     bool is_can_hit;
     string id;
+    rclcpp::Time armor_time;
     //------------------
     int latency_count;
     float all_latency;
@@ -108,11 +113,10 @@ public:
     //------------------
     float randa;
     bool is_hero;
-    bool is_rune;
+    double max_yaw_diff;
     //------------------
     // Subsciption
     //------------------
-    rclcpp::Subscription<rm_msgs::msg::Target>::SharedPtr target_sub_;
     rclcpp::Subscription<rm_msgs::msg::ReceiveSerial>::SharedPtr angle_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr power_rune_sub_;
     //------------------
@@ -126,6 +130,13 @@ public:
     //------------------
     rclcpp::TimerBase::SharedPtr timer_;
     //------------------
+    //tf2
+    // Subscriber with tf2 message_filter
+    std::string target_frame_;
+    std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+    message_filters::Subscriber<rm_msgs::msg::Target> target_sub_;
+    std::shared_ptr<tf2_filter> tf2_filter_;
 };
 
 } // namespace rm_trajectory

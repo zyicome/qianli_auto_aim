@@ -105,6 +105,20 @@ void ArmorTrackerNode::parameters_init()
 
 void ArmorTrackerNode::armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_msg)
 {
+    tracker_end = std::chrono::steady_clock::now();
+
+    std::chrono::duration<double> tracker_diff = tracker_end - tracker_start;
+
+    if(tracker_diff.count() >= 1)
+    {
+        std::cout << tracker_diff.count() << "s and tracker receive fps: " << tracker_fps<< std::endl;
+        tracker_now_fps = tracker_fps;
+        tracker_start = std::chrono::steady_clock::now();
+        tracker_fps = 0;
+    }
+
+    tracker_fps++;
+
     geometry_msgs::msg::PoseStamped ps;
     ps.header = armor_msg->header;
     ps.pose = armor_msg->pose;
@@ -137,7 +151,7 @@ void ArmorTrackerNode::armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_
     }
     else
     {
-        if(tracker_->tracker_armor_->status == "TRACKING")
+        if(tracker_->tracker_armor_->status != "LOST")
         {
             rclcpp::Time current_time = armor_msg->header.stamp;
             dt_ = (current_time - last_time_).seconds();
@@ -156,28 +170,45 @@ void ArmorTrackerNode::armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_
     if(tracker_->tracker_armor_->status == "TRACKING")
     {
         target_msg.tracking = true;
+        target_msg.id = tracker_->tracker_armor_->armor_name;
+        target_msg.armor_num = tracker_->tracker_armor_->armor_num;
+        target_msg.armor_position.x = tracker_->armor_target_state_.at<double>(0,0);
+        target_msg.armor_position.y = tracker_->armor_target_state_.at<double>(2,0);
+        target_msg.armor_velocity.x = tracker_->armor_target_state_.at<double>(1,0);
+        target_msg.armor_velocity.y = tracker_->armor_target_state_.at<double>(3,0);
+        target_msg.car_position.x = tracker_->target_state_.at<double>(0,0);
+        target_msg.car_position.y = tracker_->target_state_.at<double>(2,0);
+        target_msg.car_position.z = tracker_->target_state_.at<double>(4,0);
+        target_msg.car_velocity.x = tracker_->target_state_.at<double>(1,0);
+        target_msg.car_velocity.y = tracker_->target_state_.at<double>(3,0);
+        target_msg.car_velocity.z = tracker_->target_state_.at<double>(5,0);
+        target_msg.yaw = tracker_->target_state_.at<double>(6,0);
+        target_msg.v_yaw = tracker_->target_state_.at<double>(7,0);
+        target_msg.radius_1 = tracker_->target_state_.at<double>(8,0);
+        target_msg.radius_2 = tracker_->another_r_;
+        target_pub_->publish(target_msg);
     }
     else
     {
         target_msg.tracking = false;
+        target_msg.id = "";
+        target_msg.armor_num = 0;
+        target_msg.armor_position.x = 0;
+        target_msg.armor_position.y = 0;
+        target_msg.armor_velocity.x = 0;
+        target_msg.armor_velocity.y = 0;
+        target_msg.car_position.x = 0;
+        target_msg.car_position.y = 0;
+        target_msg.car_position.z = 0;
+        target_msg.car_velocity.x = 0;
+        target_msg.car_velocity.y = 0;
+        target_msg.car_velocity.z = 0;
+        target_msg.yaw = 0;
+        target_msg.v_yaw = 0;
+        target_msg.radius_1 = 0;
+        target_msg.radius_2 = 0;
+        target_pub_->publish(target_msg);
     }
-    target_msg.id = tracker_->tracker_armor_->armor_name;
-    target_msg.armor_num = tracker_->tracker_armor_->armor_num;
-    target_msg.armor_position.x = tracker_->armor_target_state_.at<double>(0,0);
-    target_msg.armor_position.y = tracker_->armor_target_state_.at<double>(2,0);
-    target_msg.armor_velocity.x = tracker_->armor_target_state_.at<double>(1,0);
-    target_msg.armor_velocity.y = tracker_->armor_target_state_.at<double>(3,0);
-    target_msg.car_position.x = tracker_->target_state_.at<double>(0,0);
-    target_msg.car_position.y = tracker_->target_state_.at<double>(2,0);
-    target_msg.car_position.z = tracker_->target_state_.at<double>(4,0);
-    target_msg.car_velocity.x = tracker_->target_state_.at<double>(1,0);
-    target_msg.car_velocity.y = tracker_->target_state_.at<double>(3,0);
-    target_msg.car_velocity.z = tracker_->target_state_.at<double>(5,0);
-    target_msg.yaw = tracker_->target_state_.at<double>(6,0);
-    target_msg.v_yaw = tracker_->target_state_.at<double>(7,0);
-    target_msg.radius_1 = tracker_->target_state_.at<double>(8,0);
-    target_msg.radius_2 = tracker_->another_r_;
-    target_pub_->publish(target_msg);
 
     if(is_debug_ == true)
     {
@@ -191,19 +222,25 @@ void ArmorTrackerNode::create_debug_publishers()
 {
     // param
     debug_param_ = std::make_shared<DebugParam>();
-    debug_param_->last_armor_x = 0;
-    debug_param_->last_armor_y = 0;
-    debug_param_->last_armor_x_v = 0;
-    debug_param_->last_armor_y_v = 0;
-    debug_param_->last_car_x = 0;
-    debug_param_->last_car_y = 0;
-    debug_param_->last_car_x_v = 0;
-    debug_param_->last_car_y_v = 0;
-    debug_param_->last_yaw = 0;
-    debug_param_->last_yaw_v = 0;
+    debug_param_->draw_count = 0;
+    debug_param_->image_width = 1000;
+    debug_param_->image_height = 1000;
+
+    double width = debug_param_->image_width;
+    double height = debug_param_->image_height;
+    debug_param_->last_armor_x = width / 2;
+    debug_param_->last_armor_y = height / 2;
+    debug_param_->last_armor_x_v = width / 2;
+    debug_param_->last_armor_y_v = height / 2;
+    debug_param_->last_car_x = width / 2;
+    debug_param_->last_car_y = height / 2;
+    debug_param_->last_car_x_v = width / 2;
+    debug_param_->last_car_y_v = height / 2;
+    debug_param_->last_yaw = width / 2;
+    debug_param_->last_yaw_v = width / 2;
 
     cv::namedWindow("EKF Simulation", cv::WINDOW_AUTOSIZE);
-    debug_image_ = cv::Mat::zeros(1000, 1000, CV_8UC3);
+    debug_image_ = cv::Mat::zeros(width, height, CV_8UC3);
 
     // sub
     detector_result_image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
@@ -240,7 +277,9 @@ void ArmorTrackerNode::ResultImageCallback(const sensor_msgs::msg::Image::Shared
             return;
         }
         cv::Mat image = cv_ptr->image;
-        cv::putText(image, tracker_->tracker_armor_->status, cv::Point(10, 80), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
+        cv::putText(image, tracker_->tracker_armor_->status, cv::Point(10, 200), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
+        cv::putText(image, tracker_->tracker_armor_->armor_name, cv::Point(10, 150), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
+        cv::putText(image, std::to_string(tracker_->tracker_armor_->lost_count), cv::Point(10, 250), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
         cv_bridge::CvImage cv_image;
         cv_image.image = image;
         cv_image.encoding = "bgr8";
@@ -265,21 +304,30 @@ void ArmorTrackerNode::debug_deal()
         double car_y_v = - tracker_->target_state_.at<double>(3,0) * 50;
         double yaw = tracker_->target_state_.at<double>(6,0);
         double yaw_v = tracker_->target_state_.at<double>(7,0);
-        double r = tracker_->target_state_.at<double>(8,0) * 100;
+        double r = tracker_->target_state_.at<double>(8,0);
 
-        double armor_car_x = car_x - cos(yaw) * r;
-        double armor_car_y = car_y - cos(yaw) * r;
+        double armor_car_x = (tracker_->target_state_.at<double>(0,0) - cos(yaw) * r) * 50 + 500;
+        double armor_car_y = - (tracker_->target_state_.at<double>(2,0) - sin(yaw) * r) * 50 + 500;
 
-        //draw
-        //RGB
-        cv::line(debug_image_, cv::Point(debug_param_->last_armor_x, debug_param_->last_armor_y), cv::Point(armor_x, armor_y), cv::Scalar(0, 0, 0), 2);
-        cv::line(debug_image_, cv::Point(debug_param_->last_car_x, debug_param_->last_car_y), cv::Point(car_x, car_y), cv::Scalar(0, 0, 255), 2);
+        // 绘画标准
+        // RGB
+        // 白色：速度，由一条直线表示 || 中心位置
+        // 红色：车辆位置，连线轨迹
+        // 蓝色：装甲板位置， 连线轨迹
+        // 绿色：由yaw和半径得到的装甲板位置
+        cv::circle(debug_image_, cv::Point(debug_param_->image_width, debug_param_->image_height), 2, cv::Scalar(255, 255, 255), -1);
+
+        cv::line(debug_image_, cv::Point(debug_param_->last_car_x, debug_param_->last_car_y), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
         cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(armor_car_x, armor_car_y), cv::Scalar(0, 255, 0), 2);
-        cv::circle(debug_image_, cv::Point(armor_x, armor_y), 1, cv::Scalar(255, 0, 0), 1);
-        cv::line(debug_image_, cv::Point(armor_x, armor_y), cv::Point(armor_x + armor_x_v, armor_y), cv::Scalar(0, 0, 0), 2);
-        cv::line(debug_image_, cv::Point(armor_x, armor_y), cv::Point(armor_x, armor_y + armor_y_v), cv::Scalar(0, 0, 0), 2);
-        cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(car_x + car_x_v, car_y), cv::Scalar(0, 0, 255), 2);
-        cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(car_x, car_y + car_y_v), cv::Scalar(0, 0, 255), 2);
+        cv::circle(debug_image_, cv::Point(armor_x, armor_y), 2, cv::Scalar(0, 255, 0), -1);
+
+        cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(car_x + car_x_v, car_y), cv::Scalar(255, 255, 255), 2);
+        cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(car_x, car_y + car_y_v), cv::Scalar(255, 255, 255), 2);
+
+        cv::line(debug_image_, cv::Point(debug_param_->last_armor_x, debug_param_->last_armor_y), cv::Point(armor_x, armor_y), cv::Scalar(0, 0, 255), 2);
+
+        cv::line(debug_image_, cv::Point(armor_x, armor_y), cv::Point(armor_x + armor_x_v, armor_y), cv::Scalar(255, 255, 255), 2);
+        cv::line(debug_image_, cv::Point(armor_x, armor_y), cv::Point(armor_x, armor_y + armor_y_v), cv::Scalar(255, 255, 255), 2);
 
         debug_param_->last_armor_x = armor_x;
         debug_param_->last_armor_y = armor_y;
@@ -294,6 +342,13 @@ void ArmorTrackerNode::debug_deal()
 
         cv::imshow("EKF Simulation", debug_image_);
         cv::waitKey(1);
+
+        debug_param_->draw_count++;
+        if(debug_param_->draw_count > 1)
+        {
+            debug_image_ = cv::Mat::zeros(debug_param_->image_width, debug_param_->image_height, CV_8UC3);
+            debug_param_->draw_count = 0;
+        }
     }
 }
 //--------------------------------------------------------------------------------------------------

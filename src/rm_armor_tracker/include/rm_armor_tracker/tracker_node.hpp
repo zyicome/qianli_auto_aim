@@ -30,6 +30,9 @@ using tf2_filter = tf2_ros::MessageFilter<rm_msgs::msg::Armor>;
 
 struct DebugParam
 {
+    int draw_count;
+    int image_width;
+    int image_height;
     double last_armor_x;
     double last_armor_y;
     double last_armor_x_v;
@@ -51,11 +54,18 @@ public:
 
     rclcpp::Time last_time_;
     double dt_;
-    int lost_time_thres_;
+    double lost_time_thres_;
 
     std::shared_ptr<Tracker> tracker_;
 
     rclcpp::Publisher<rm_msgs::msg::Target>::SharedPtr target_pub_;
+
+    //-----------------------------------------------------------------
+    // time
+    std::chrono::steady_clock::time_point tracker_start;
+    std::chrono::steady_clock::time_point tracker_end;
+    int tracker_fps;
+    int tracker_now_fps;
 
     //-----------------------------------------------------------------
     // tf2

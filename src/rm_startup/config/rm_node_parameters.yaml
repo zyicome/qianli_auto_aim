@@ -39,4 +39,10 @@
     max_match_distance: 0.5
     max_match_yaw_diff: 2.0
     tracking_time_thres: 5
-    lose_time_thres: 0.3
+    lost_time_thres: 0.3
+
+/mechax_trajectory:
+  ros__parameters:
+    is_hero: false
+
+    max_yaw_diff: 0.5

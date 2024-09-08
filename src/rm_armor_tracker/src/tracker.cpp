@@ -181,6 +181,8 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
             RCLCPP_WARN(rclcpp::get_logger("armor_tracker"), "No matched armor found!");
         }
 
+    }
+
         // Prevent radius from spreading
         if (target_state_.at<double>(8,0) < 0.12) {
             target_state_.at<double>(8,0) = 0.12;
@@ -189,7 +191,6 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
             target_state_.at<double>(8,0) = 0.4;
             ekf_->set_state(target_state_);
         }
-    }
 
         // Tracking state machine
         if(tracker_armor_->status == "DETECTING")
@@ -208,6 +209,8 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
                 tracker_armor_->detect_count = 0;
                 tracker_armor_->status = "LOST";
                 tracker_armor_->armor_id = -1;
+                tracker_armor_->armor_num = 0;
+                tracker_armor_->armor_name = "";
             }
         }
         else if(tracker_armor_->status == "TRACKING")
@@ -215,7 +218,7 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
             if(is_matched == false)
             {
                 tracker_armor_->lost_count++;
-                tracker_armor_->status == "LOSTING";
+                tracker_armor_->status = "LOSTING";
             }
         }
         else if(tracker_armor_->status == "LOSTING")
@@ -228,6 +231,8 @@ void Tracker::tracker_update(const rm_msgs::msg::Armor::SharedPtr armor_msg)
                     tracker_armor_->lost_count = 0;
                     tracker_armor_->status = "LOST";
                     tracker_armor_->armor_id = -1;
+                    tracker_armor_->armor_num = 0;
+                    tracker_armor_->armor_name = "";
                 }
             }
             else

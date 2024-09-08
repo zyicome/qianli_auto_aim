@@ -69,6 +69,14 @@ def generate_launch_description():
         output='both',
     )
 
+    mechax_trajectory_node = Node(
+        package='mechax_trajectory',
+        executable='mechax_trajectory_node',
+        name='mechax_trajectory',
+        parameters=[node_params],
+        output='both',
+    )
+
     container = ComposableNodeContainer(
         name='image_container',
         namespace='',
@@ -92,9 +100,15 @@ def generate_launch_description():
         actions=[serial_driver_node],
     )
 
+    mechax_trajectory_node_delay = TimerAction(
+        period=2.0,
+        actions=[mechax_trajectory_node],
+    )
+
     return LaunchDescription([
         robot_state_publisher,
         container,
         tracker_node_delay,
         serial_driver_node_delay,
+        mechax_trajectory_node_delay,
     ])
