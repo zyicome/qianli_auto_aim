@@ -358,7 +358,7 @@ int Trajectoryer::solve_trajectory()
         for(i = 1; i<3;i++)
         {
             float temp_yaw_diff = cos(results.at(i).yaw - now_yaw);
-            if(temp_yaw_diff > yaw_diff_min)
+            if(temp_yaw_diff < yaw_diff_min)
             {
                 yaw_diff_min = temp_yaw_diff;
                 idx = i;
@@ -386,7 +386,7 @@ int Trajectoryer::solve_trajectory()
         for(int i = 1; i<4; i++)
         {
             float temp_yaw_diff = cos(results.at(i).yaw - now_yaw);
-            if(temp_yaw_diff > yaw_diff_min)
+            if(temp_yaw_diff < yaw_diff_min)
             {
                 yaw_diff_min = temp_yaw_diff;
                 idx = i;
@@ -395,7 +395,7 @@ int Trajectoryer::solve_trajectory()
     }
     if(idx != 0)
     {
-        is_change_armor = false;
+        is_change_armor = true;
         std::cout << "mechax_trajectory change armor" << std::endl;
     }
 //得到results :存放了所有装甲板的位置信息 
