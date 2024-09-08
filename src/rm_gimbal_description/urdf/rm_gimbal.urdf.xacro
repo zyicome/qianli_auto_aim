@@ -15,8 +15,7 @@
     <child link="shoot" />
   </joint>
 
-  <joint name="gimbal_joint" type="fixed">
-    <origin xyz="0 0 0" rpy="0 0 0" />
+  <joint name="gimbal_joint" type="floating">
     <parent link="odom" />
     <child link="gimbal_link" />
   </joint>

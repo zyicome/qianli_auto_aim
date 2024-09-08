@@ -395,7 +395,7 @@ int Trajectoryer::solve_trajectory()
     }
     if(idx != 0)
     {
-        is_change_armor = true;
+        is_change_armor = false;
         std::cout << "mechax_trajectory change armor" << std::endl;
     }
 //得到results :存放了所有装甲板的位置信息 
@@ -484,7 +484,7 @@ int Trajectoryer::solve_trajectory()
     bias_time_msg.fly_t = fly_t;
     bias_time_msg.serial_bias_time = serial_bias_time;
     bias_time_msg.latency_bias_time = latency_bias_time;
-    bias_time_msg.motor_bias_time =motor_bias_time;
+    bias_time_msg.motor_bias_time = motor_bias_time;
     bias_time_pub_->publish(bias_time_msg);
     this->distance = sqrtf(pow(object_x, 2) + pow(object_y, 2) + pow(object_z, 2));
     return 1;
