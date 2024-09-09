@@ -315,36 +315,36 @@ void ArmorTrackerNode::debug_deal()
         double armor_car_y = - (tracker_->target_state_.at<double>(2,0) - sin(yaw) * r) * 50 + 500;
 
         // 绘画标准
-        // RGB
+        // BGR
         // 白色：速度，由一条直线表示 || 中心位置
         // 红色：车辆位置，连线轨迹
         // 蓝色：装甲板位置， 连线轨迹
         // 绿色：由yaw和半径得到的装甲板位置
         cv::circle(debug_image_, cv::Point(debug_param_->image_width, debug_param_->image_height), 2, cv::Scalar(255, 255, 255), -1);
 
-        cv::line(debug_image_, cv::Point(debug_param_->last_car_x, debug_param_->last_car_y), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
+        cv::line(debug_image_, cv::Point(debug_param_->last_car_x, debug_param_->last_car_y), cv::Point(car_x, car_y), cv::Scalar(0, 0, 255), 2);
         cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(armor_car_x, armor_car_y), cv::Scalar(0, 255, 0), 2);
         if(tracker_->tracker_armor_->armor_num == 4)
         {
-            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 2) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 2) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
-            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
-            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 2 * 3) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 2 * 3) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 2) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 2) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(0, 255, 0), 2);
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(0, 255, 0), 2);
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 2 * 3) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 2 * 3) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(0, 255, 0), 2);
         }
         else if(tracker_->tracker_armor_->armor_num == 3)
         {
-            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 3 * 2) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 3 * 2) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
-            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 3 * 4) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 3 * 4) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 3 * 2) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 3 * 2) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(0, 255, 0), 2);
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 3 * 4) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 3 * 4) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(0, 255, 0), 2);
         }
         else if(tracker_->tracker_armor_->armor_num == 2)
         {
-            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(0, 255, 0), 2);
         }
         cv::circle(debug_image_, cv::Point(armor_x, armor_y), 2, cv::Scalar(0, 255, 0), -1);
 
         cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(car_x + car_x_v, car_y), cv::Scalar(255, 255, 255), 2);
         cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(car_x, car_y + car_y_v), cv::Scalar(255, 255, 255), 2);
 
-        cv::line(debug_image_, cv::Point(debug_param_->last_armor_x, debug_param_->last_armor_y), cv::Point(armor_x, armor_y), cv::Scalar(0, 0, 255), 2);
+        cv::line(debug_image_, cv::Point(debug_param_->last_armor_x, debug_param_->last_armor_y), cv::Point(armor_x, armor_y), cv::Scalar(255, 0, 0), 2);
 
         cv::line(debug_image_, cv::Point(armor_x, armor_y), cv::Point(armor_x + armor_x_v, armor_y), cv::Scalar(255, 255, 255), 2);
         cv::line(debug_image_, cv::Point(armor_x, armor_y), cv::Point(armor_x, armor_y + armor_y_v), cv::Scalar(255, 255, 255), 2);
