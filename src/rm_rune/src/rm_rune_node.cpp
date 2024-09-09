@@ -36,6 +36,12 @@ namespace qianli_rm_rune
             this->get_node_base_interface(), this->get_node_timers_interface());
         tf2_buffer_->setCreateTimerInterface(timer_interface);
         tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
+
+        rune_start_ = std::chrono::steady_clock::now();
+        rune_end_ = std::chrono::steady_clock::now();
+        rune_fps_ = 0;
+        rune_now_fps_ = 0;
+
     }
 
     void RuneNode::status_callback(const rm_msgs::msg::Status::SharedPtr msg)
@@ -49,6 +55,7 @@ namespace qianli_rm_rune
         {
             rune_image_sub_ = create_subscription<sensor_msgs::msg::Image>(
                 "/image_raw", rclcpp::SensorDataQoS(), std::bind(&RuneNode::rune_image_callback, this, std::placeholders::_1));
+            rune_start_ = std::chrono::steady_clock::now();
         }
         else
         {
@@ -64,19 +71,19 @@ namespace qianli_rm_rune
     //- publisher: Publisher类型，用于发布处理后的3D点位信息。
     void RuneNode::rune_image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
     {
-        rune_end = std::chrono::steady_clock::now();
+        rune_end_ = std::chrono::steady_clock::now();
 
-        std::chrono::duration<double> rune_diff = rune_end - rune_start;
+        std::chrono::duration<double> rune_diff = rune_end_ - rune_start_;
 
         if(rune_diff.count() >= 1)
         {
-            std::cout << rune_diff.count() << "s and rune receive fps: " << rune_fps<< std::endl;
-            rune_now_fps = rune_fps;
-            rune_start = std::chrono::steady_clock::now();
-            rune_fps = 0;
+            std::cout << rune_diff.count() << "s and rune receive fps: " << rune_fps_<< std::endl;
+            rune_now_fps_ = rune_fps_;
+            rune_start_ = std::chrono::steady_clock::now();
+            rune_fps_ = 0;
         }
 
-        rune_fps++;
+        rune_fps_++;
 
         cv::Mat rune_image;
         try
@@ -119,7 +126,6 @@ namespace qianli_rm_rune
         if (contours_info_.size() > 1) {
             RCLCPP_WARN(get_logger(), "检测到 %ld 个能量机关，仅使用最形状接近的一个", contours_info_.size());
         }
-
         Blade blade(contours_info_[0],cfg_);
         predictor.update(blade.vector);
         auto radian = predictor.predict();
@@ -129,7 +135,6 @@ namespace qianli_rm_rune
             RCLCPP_ERROR(get_logger(), "没有相机信息，无法计算3D点位信息");
             return;
         }
-
         // Assuming cam_info_.k is a std::vector<float> with at least 6 elements
         geometry_msgs::msg::PointStamped point_msg;
         point_msg.header.frame_id = "camera_link";
@@ -138,7 +143,6 @@ namespace qianli_rm_rune
         point_msg.point.z = -(predicted_vector.y + blade.center.y - cam_info_->k[5]) / cam_info_->k[4];
 
         float distance = (cam_info_->k[0] + cam_info_->k[4]) / 2 / std::sqrt(predicted_vector.x * predicted_vector.x + predicted_vector.y * predicted_vector.y) * 0.7 * cfg_.distance_correction_ratio;
-
         point_msg.point.x *= distance;
         point_msg.point.y *= distance;
         point_msg.point.z *= distance;

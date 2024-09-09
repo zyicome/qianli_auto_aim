@@ -101,23 +101,28 @@ void ArmorTrackerNode::parameters_init()
     // pub
     target_pub_ = this->create_publisher<rm_msgs::msg::Target>("/tracker/target", 10);
 
+    tracker_start_ = std::chrono::steady_clock::now();
+    tracker_end_ = std::chrono::steady_clock::now();
+    tracker_fps_ = 0;
+    tracker_now_fps_ = 0;
+
 }
 
 void ArmorTrackerNode::armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_msg)
 {
-    tracker_end = std::chrono::steady_clock::now();
+    tracker_end_ = std::chrono::steady_clock::now();
 
-    std::chrono::duration<double> tracker_diff = tracker_end - tracker_start;
+    std::chrono::duration<double> tracker_diff = tracker_end_ - tracker_start_;
 
     if(tracker_diff.count() >= 1)
     {
-        std::cout << tracker_diff.count() << "s and tracker receive fps: " << tracker_fps<< std::endl;
-        tracker_now_fps = tracker_fps;
-        tracker_start = std::chrono::steady_clock::now();
-        tracker_fps = 0;
+        std::cout << tracker_diff.count() << "s and tracker receive fps: " << tracker_fps_<< std::endl;
+        tracker_now_fps_ = tracker_fps_;
+        tracker_start_ = std::chrono::steady_clock::now();
+        tracker_fps_ = 0;
     }
 
-    tracker_fps++;
+    tracker_fps_++;
 
     geometry_msgs::msg::PoseStamped ps;
     ps.header = armor_msg->header;
@@ -319,6 +324,21 @@ void ArmorTrackerNode::debug_deal()
 
         cv::line(debug_image_, cv::Point(debug_param_->last_car_x, debug_param_->last_car_y), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
         cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(armor_car_x, armor_car_y), cv::Scalar(0, 255, 0), 2);
+        if(tracker_->tracker_armor_->armor_num == 4)
+        {
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 2) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 2) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 2 * 3) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 2 * 3) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
+        }
+        else if(tracker_->tracker_armor_->armor_num == 3)
+        {
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 3 * 2) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 3 * 2) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI / 3 * 4) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI / 3 * 4) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
+        }
+        else if(tracker_->tracker_armor_->armor_num == 2)
+        {
+            cv::line(debug_image_, cv::Point((tracker_->target_state_.at<double>(0,0) - cos(yaw + M_PI) * r) * 50 + 500, - (tracker_->target_state_.at<double>(2,0) - sin(yaw + M_PI) * r) * 50 + 500), cv::Point(car_x, car_y), cv::Scalar(255, 0, 0), 2);
+        }
         cv::circle(debug_image_, cv::Point(armor_x, armor_y), 2, cv::Scalar(0, 255, 0), -1);
 
         cv::line(debug_image_, cv::Point(car_x, car_y), cv::Point(car_x + car_x_v, car_y), cv::Scalar(255, 255, 255), 2);

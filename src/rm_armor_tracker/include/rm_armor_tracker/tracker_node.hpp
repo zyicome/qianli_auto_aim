@@ -62,10 +62,10 @@ public:
 
     //-----------------------------------------------------------------
     // time
-    std::chrono::steady_clock::time_point tracker_start;
-    std::chrono::steady_clock::time_point tracker_end;
-    int tracker_fps;
-    int tracker_now_fps;
+    std::chrono::steady_clock::time_point tracker_start_;
+    std::chrono::steady_clock::time_point tracker_end_;
+    int tracker_fps_;
+    int tracker_now_fps_;
 
     //-----------------------------------------------------------------
     // tf2

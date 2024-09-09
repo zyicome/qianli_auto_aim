@@ -79,6 +79,11 @@ void ArmorDetectorNode::parameters_init()
     status_sub_ = this->create_subscription<rm_msgs::msg::Status>(
         "/status", rclcpp::SensorDataQoS(), std::bind(&ArmorDetectorNode::status_callback, this, std::placeholders::_1));
 
+    detector_start_ = std::chrono::steady_clock::now();
+    detector_end_ = std::chrono::steady_clock::now();
+    detector_fps_ = 0;
+    detector_now_fps_ = 0;
+
     RCLCPP_INFO(this->get_logger(), "Finished init parameters successfully!");
 }
 
@@ -121,7 +126,7 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor
         cv::putText(debug_image, "width: " + std::to_string(debug_image.cols) + " height: " + std::to_string(debug_image.rows), cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
         cv::circle(debug_image, image_center_, 5, cv::Scalar(0, 255, 0), -1);
         // 绘制fps
-        cv::putText(debug_image, "detector fps: " + std::to_string(detector_now_fps), cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
+        cv::putText(debug_image, "detector fps: " + std::to_string(detector_now_fps_), cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
         sensor_msgs::msg::Image debug_image_msg = *(cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", debug_image).toImageMsg());
         result_image_pub_.publish(debug_image_msg);
     }
@@ -163,24 +168,26 @@ void ArmorDetectorNode::status_callback(const rm_msgs::msg::Status::SharedPtr ms
     {
         image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
             "/image_raw", rclcpp::SensorDataQoS(), std::bind(&ArmorDetectorNode::image_callback, this, std::placeholders::_1));
+
+        detector_start_ = std::chrono::steady_clock::now();
     }
 }
 
 void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
 {
-    detector_end = std::chrono::steady_clock::now();
+    detector_end_ = std::chrono::steady_clock::now();
 
-    std::chrono::duration<double> detector_diff = detector_end - detector_start;
+    std::chrono::duration<double> detector_diff = detector_end_ - detector_start_;
 
     if(detector_diff.count() >= 1)
     {
-        std::cout << detector_diff.count() << "s and detector receive fps: " << detector_fps<< std::endl;
-        detector_now_fps = detector_fps;
-        detector_start = std::chrono::steady_clock::now();
-        detector_fps = 0;
+        std::cout << detector_diff.count() << "s and detector receive fps: " << detector_fps_<< std::endl;
+        detector_now_fps_ = detector_fps_;
+        detector_start_ = std::chrono::steady_clock::now();
+        detector_fps_ = 0;
     }
 
-    detector_fps++;
+    detector_fps_++;
 
     // 1. Convert ROS image message to OpenCV image
     cv::Mat image = cv_bridge::toCvCopy(msg, "bgr8")->image;

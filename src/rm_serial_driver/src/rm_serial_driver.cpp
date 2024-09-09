@@ -234,7 +234,6 @@ void RMSerialDriver::receiveData()
 
                       rm_msgs::msg::Status status;
                       status.is_rune = packet.is_rune;
-                      status.is_rune = false;
                       status_pub_->publish(status);
 
                       total_count++;

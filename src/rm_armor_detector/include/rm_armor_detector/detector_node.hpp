@@ -86,10 +86,10 @@ public:
     std::shared_ptr<rclcpp::ParameterCallbackHandle> debug_cb_handle_;
 
     //------------------------------------------------------------------------------
-    std::chrono::steady_clock::time_point detector_start;
-    std::chrono::steady_clock::time_point detector_end;
-    int detector_fps;
-    int detector_now_fps;
+    std::chrono::steady_clock::time_point detector_start_;
+    std::chrono::steady_clock::time_point detector_end_;
+    int detector_fps_;
+    int detector_now_fps_;
 };
 
 }  // namespace rm_armor_detector

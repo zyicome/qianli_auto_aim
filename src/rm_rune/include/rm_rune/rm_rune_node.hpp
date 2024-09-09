@@ -54,10 +54,10 @@ public:
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
 
     // time
-    std::chrono::steady_clock::time_point rune_start;
-    std::chrono::steady_clock::time_point rune_end;
-    int rune_fps;
-    int rune_now_fps;
+    std::chrono::steady_clock::time_point rune_start_;
+    std::chrono::steady_clock::time_point rune_end_;
+    int rune_fps_;
+    int rune_now_fps_;
 };
 
 } // namespace qianli_rm_rune
