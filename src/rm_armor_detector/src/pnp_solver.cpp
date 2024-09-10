@@ -15,7 +15,7 @@ void PnpSolver::init()
     double big_armor_half_height = BIG_ARMOR_LIGHT_HEIGHT_ / 2;
 
     // 装甲板实际四个点的坐标，以中心为原点，朝装甲板向外为x轴正方向，单位为m， 左灯条上顶点为起始点，顺时针
-    small_armor_points_3d_.push_back(cv::Point3f(0, -small_armor_half_width, small_armor_half_height));
+    /*small_armor_points_3d_.push_back(cv::Point3f(0, -small_armor_half_width, small_armor_half_height));
     small_armor_points_3d_.push_back(cv::Point3f(0, small_armor_half_width, small_armor_half_height));
     small_armor_points_3d_.push_back(cv::Point3f(0, small_armor_half_width, -small_armor_half_height));
     small_armor_points_3d_.push_back(cv::Point3f(0, -small_armor_half_width, -small_armor_half_height));
@@ -23,7 +23,19 @@ void PnpSolver::init()
     big_armor_points_3d_.push_back(cv::Point3f(0, -big_armor_half_width, big_armor_half_height));
     big_armor_points_3d_.push_back(cv::Point3f(0, big_armor_half_width, big_armor_half_height));
     big_armor_points_3d_.push_back(cv::Point3f(0, big_armor_half_width, -big_armor_half_height));
-    big_armor_points_3d_.push_back(cv::Point3f(0, -big_armor_half_width, -big_armor_half_height));
+    big_armor_points_3d_.push_back(cv::Point3f(0, -big_armor_half_width, -big_armor_half_height));*/
+
+    // 中点法
+    small_armor_points_3d_.push_back(cv::Point3f(0, 0, small_armor_half_height));
+    small_armor_points_3d_.push_back(cv::Point3f(0, small_armor_half_width, 0));
+    small_armor_points_3d_.push_back(cv::Point3f(0, 0, - small_armor_half_height));
+    small_armor_points_3d_.push_back(cv::Point3f(0, -small_armor_half_width, 0));
+
+    big_armor_points_3d_.push_back(cv::Point3f(0, 0, big_armor_half_height));
+    big_armor_points_3d_.push_back(cv::Point3f(0, big_armor_half_width, 0));
+    big_armor_points_3d_.push_back(cv::Point3f(0, 0, -big_armor_half_height));
+    big_armor_points_3d_.push_back(cv::Point3f(0, -big_armor_half_width, 0));
+
     std::cout << "PnpSolver init successfully!" << std::endl;
 }
 
@@ -42,8 +54,14 @@ bool PnpSolver::solve_pnp(const std::vector<cv::Point2f> &points, cv::Mat &rvec,
     // 模型准确度有待测试
     //cv::Mat inliers;
     //cv::solvePnPRansac(points, armor_points_3d_, camera_matrix_, dist_coeffs_, rvec, tvec, true, 100, 8.0, 0.99, inliers);
+    std::vector<cv::Point2f> half_points;
+    half_points.push_back(cv::Point2f((points[0].x + points[1].x) / 2,(points[0].y + points[1].y) / 2));
+    half_points.push_back(cv::Point2f((points[1].x + points[2].x) / 2,(points[1].y + points[2].y) / 2));
+    half_points.push_back(cv::Point2f((points[2].x + points[3].x) / 2,(points[2].y + points[3].y) / 2));
+    half_points.push_back(cv::Point2f((points[3].x + points[0].x) / 2,(points[3].y + points[0].y) / 2));
+
     std::vector<cv::Point3f> objectPoints = is_big_armor ? big_armor_points_3d_ : small_armor_points_3d_;
-    cv::solvePnP(objectPoints, points, camera_matrix_, dist_coeffs_, rvec, tvec, false, cv::SOLVEPNP_IPPE);
+    cv::solvePnP(objectPoints, half_points, camera_matrix_, dist_coeffs_, rvec, tvec, false, cv::SOLVEPNP_IPPE);
     return true;
 }
 

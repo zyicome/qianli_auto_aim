@@ -3,7 +3,7 @@ install/
 log/
 .vscode/
 .git/
-src/rm_gimbal_desciption/urdf/rm_gimbal.urdf.xacro
+src/rm_gimbal_description/urdf/rm_gimbal.urdf.xacro
 src/rm_startup/config/rm_camera_info.yaml
 src/rm_startup/config/rm_launch_parameters.yaml
 src/rm_startup/config/rm_node_parameters.yaml
