@@ -11,11 +11,11 @@ src/ros2-hik-camera/config/camera_info.yaml
 src/ros2-hik-camera/config/camera_params.yaml
 src/ros2-mindvision-camera/config/camera_info.yaml
 src/ros2-mindvision-camera/config/camera_params.yaml
-# src/rm_gimbal_description/urdf/rm_gimbal_example.urdf.xacro
-# src/rm_startup/config/rm_camera_info_example.yaml
-# src/rm_startup/config/rm_launch_parameters_example.yaml
-# src/rm_startup/config/rm_node_parameters_example.yaml
-# src/ros2-hik-camera/config/camera_info_example.yaml
-# src/ros2-hik-camera/config/camera_params_example.yaml
-# src/ros2-mindvision-camera/config/camera_info_example.yaml
-# src/ros2-mindvision-camera/config/camera_params_example.yaml
+src/rm_gimbal_description/urdf/rm_gimbal_example.urdf.xacro
+src/rm_startup/config/rm_camera_info_example.yaml
+src/rm_startup/config/rm_launch_parameters_example.yaml
+src/rm_startup/config/rm_node_parameters_example.yaml
+src/ros2-hik-camera/config/camera_info_example.yaml
+src/ros2-hik-camera/config/camera_params_example.yaml
+src/ros2-mindvision-camera/config/camera_info_example.yaml
+src/ros2-mindvision-camera/config/camera_params_example.yaml
