@@ -66,7 +66,7 @@ void ArmorDetectorNode::parameters_init()
         std::cout << "ignore_armors: " << ignore_armors_[i] << std::endl;
     }
 
-    std::string model_path = "/home/qianli/zyb/qianli_auto_aim/src/rm_armor_detector/model/four_points_armor/armor.onnx";
+    std::string model_path = "/home/zyicome/zyb/qianli_auto_aim/src/rm_armor_detector/model/four_points_armor/armor.onnx";
     openvino_detector_ = std::make_shared<OpenvinoDetector>();
     openvino_detector_->set_onnx_model(model_path, "GPU");
 
