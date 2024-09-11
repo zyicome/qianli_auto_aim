@@ -386,13 +386,6 @@ int Trajectoryer::solve_trajectory()
         for(int i = 1; i<4; i++)
         {
             float temp_yaw_diff = fabs(atan2(results.at(i).y , results.at(i).x) - now_yaw);
-            std::cout << "yaw_diff_min: " << yaw_diff_min << std::endl;
-            std::cout << "temp_yaw_diff: " << temp_yaw_diff << std::endl;
-            std::cout << "i: " << i << std::endl;
-            std::cout << "idx: " << idx << std::endl;
-            std::cout << "results.at(i).yaw" << atan2(results.at(i).y , results.at(i).x) << std::endl;
-            std::cout << "results.at(0).yaw" << atan2(results.at(0).y , results.at(0).x) << std::endl;
-            std::cout << "now_yaw" << now_yaw << std::endl;
             if(temp_yaw_diff < yaw_diff_min)
             {
                 yaw_diff_min = temp_yaw_diff;
