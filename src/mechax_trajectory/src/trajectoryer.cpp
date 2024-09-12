@@ -328,8 +328,8 @@ int Trajectoryer::solve_trajectory()
         results.push_back(position_result);
         }
 
-        float yaw_diff_min = fabs(atan2(results.at(0).y , results.at(0).x) - now_yaw);
-        float temp_yaw_diff = fabs(atan2(results.at(1).y , results.at(1).x) - now_yaw);
+        float yaw_diff_min = fabs(results.at(0).yaw - now_yaw);
+        float temp_yaw_diff = fabs(results.at(1).yaw - now_yaw);
         if(temp_yaw_diff < yaw_diff_min)
         {
             yaw_diff_min = temp_yaw_diff;
@@ -354,10 +354,10 @@ int Trajectoryer::solve_trajectory()
             // 2       1
 
             //     0
-        float yaw_diff_min = fabs(atan2(results.at(0).y , results.at(0).x) - now_yaw);
+        float yaw_diff_min = fabs(results.at(0).yaw - now_yaw);
         for(i = 1; i<3;i++)
         {
-            float temp_yaw_diff = fabs(atan2(results.at(i).y , results.at(i).x) - now_yaw);
+            float temp_yaw_diff = fabs(results.at(i).yaw - now_yaw);
             if(temp_yaw_diff < yaw_diff_min)
             {
                 yaw_diff_min = temp_yaw_diff;
@@ -382,10 +382,10 @@ int Trajectoryer::solve_trajectory()
         use_1 = !use_1;
         }
 
-        float yaw_diff_min = fabs(atan2(results.at(0).y , results.at(0).x) - now_yaw);
+        float yaw_diff_min = fabs(results.at(0).yaw - now_yaw);
         for(int i = 1; i<4; i++)
         {
-            float temp_yaw_diff = fabs(atan2(results.at(i).y , results.at(i).x) - now_yaw);
+            float temp_yaw_diff = fabs(results.at(i).yaw - now_yaw);
             if(temp_yaw_diff < yaw_diff_min)
             {
                 yaw_diff_min = temp_yaw_diff;
