@@ -7,6 +7,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
+#include "ament_index_cpp/get_package_share_directory.hpp"
 
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/convert.h>
@@ -17,28 +18,18 @@
 
 #include "openvino_detector.hpp"
 #include "pnp_solver.hpp"
+#include "lights_detector.hpp"
+#include "armor.hpp"
 
 namespace rm_armor_detector
 {
-
-struct DecisionArmor
-{
-    bool is_big_armor;
-    bool is_ignored;
-    bool is_continue;
-    int id; // 0 哨兵 1-5 数字 6 前哨站 7 基地 8 基地大装甲
-    int color; // 0: red 1: blue
-    int priority; // 优先级越高数字越小，优先级高先打，优先级相同则选择里图像中心最近的
-    float distance;
-    float distance_to_image_center;
-    std::vector<cv::Point2f> four_points;
-};
 
 class ArmorDetectorNode : public rclcpp::Node
 {
 public:
     ArmorDetectorNode(const rclcpp::NodeOptions & options);
     void parameters_init();
+    std::unique_ptr<LightsDetector> initDetector();
     void camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg);
     void status_callback(const rm_msgs::msg::Status::SharedPtr msg);
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
@@ -52,6 +43,7 @@ public:
     DecisionArmor decide_armor_shoot(const std::vector<DecisionArmor> &decision_armors);
 
     bool is_rune_;
+    bool is_openvino_;
     int is_debug_;
     int detect_color_;
     double MIN_BIG_ARMOR_RATIO_;
@@ -66,6 +58,7 @@ public:
     std::vector<DecisionArmor> decision_armors_;
 
     std::shared_ptr<OpenvinoDetector> openvino_detector_;
+    std::shared_ptr<LightsDetector> lights_detector_;
     std::shared_ptr<PnpSolver> pnp_solver_;
 
     rclcpp::Publisher<rm_msgs::msg::Armor>::SharedPtr armor_pub_;

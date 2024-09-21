@@ -29,6 +29,25 @@ void ArmorDetectorNode::parameters_init()
       is_debug_ ? create_debug_publishers() : destroy_debug_publishers();
     });
 
+    this->declare_parameter("is_openvino", true);
+    is_openvino_ = this->get_parameter("is_openvino").as_bool();
+    std::cout << "is_openvino: " << is_openvino_ << std::endl;
+
+    if(is_openvino_ == false)
+    {
+        RCLCPP_INFO(this->get_logger(), "Light armor detect mode!");
+
+        lights_detector_ = initDetector();
+    }
+    else if(is_openvino_ == true)
+    {
+        RCLCPP_INFO(this->get_logger(), "Openvino detect mode!");
+        auto pkg_path = ament_index_cpp::get_package_share_directory("rm_armor_detector");
+        auto model_path = pkg_path + "/model/four_points_armor/armor.onnx";
+        openvino_detector_ = std::make_shared<OpenvinoDetector>();
+        openvino_detector_->set_onnx_model(model_path, "CPU");
+    }
+
     this->declare_parameter("MIN_BIG_ARMOR_RATIO", 3.2);
     MIN_BIG_ARMOR_RATIO_ = this->get_parameter("MIN_BIG_ARMOR_RATIO").as_double();
     std::cout << "MIN_BIG_ARMOR_RATIO: " << MIN_BIG_ARMOR_RATIO_ << std::endl;
@@ -66,10 +85,6 @@ void ArmorDetectorNode::parameters_init()
         std::cout << "ignore_armors: " << ignore_armors_[i] << std::endl;
     }
 
-    std::string model_path = "/home/zyicome/zyb/qianli_auto_aim/src/rm_armor_detector/model/four_points_armor/armor.onnx";
-    openvino_detector_ = std::make_shared<OpenvinoDetector>();
-    openvino_detector_->set_onnx_model(model_path, "CPU");
-
     armor_pub_ = this->create_publisher<rm_msgs::msg::Armor>("/detector/armor", 10);
 
     camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
@@ -85,6 +100,43 @@ void ArmorDetectorNode::parameters_init()
     detector_now_fps_ = 0;
 
     RCLCPP_INFO(this->get_logger(), "Finished init parameters successfully!");
+}
+
+std::unique_ptr<LightsDetector> ArmorDetectorNode::initDetector()
+{
+  rcl_interfaces::msg::ParameterDescriptor param_desc;
+  param_desc.integer_range.resize(1);
+  param_desc.integer_range[0].step = 1;
+  param_desc.integer_range[0].from_value = 0;
+  param_desc.integer_range[0].to_value = 255;
+  int binary_thres = declare_parameter("binary_thres", 160, param_desc);
+
+  LightsDetector::LightParams l_params;
+    l_params.min_ratio = declare_parameter("light.min_ratio", 0.1);
+    l_params.max_ratio = declare_parameter("light.max_ratio", 0.4);
+    l_params.max_angle = declare_parameter("light.max_angle", 40.0);
+
+  LightsDetector::ArmorParams a_params;
+    a_params.min_light_ratio = declare_parameter("armor.min_light_ratio", 0.7);
+    a_params.min_small_center_distance = declare_parameter("armor.min_small_center_distance", 0.8);
+    a_params.max_small_center_distance = declare_parameter("armor.max_small_center_distance", 3.2);
+    a_params.min_large_center_distance = declare_parameter("armor.min_large_center_distance", 3.2);
+    a_params.max_large_center_distance = declare_parameter("armor.max_large_center_distance", 5.5);
+    a_params.max_angle = declare_parameter("armor.max_angle", 35.0);
+
+  auto detector = std::make_unique<LightsDetector>(binary_thres, detect_color_, l_params, a_params);
+
+  // Init classifier
+  auto pkg_path = ament_index_cpp::get_package_share_directory("rm_armor_detector");
+  auto model_path = pkg_path + "/model/light_armor/mlp.onnx";
+  auto label_path = pkg_path + "/model/light_armor/label.txt";
+  double threshold = this->declare_parameter("classifier_threshold", 0.7);
+  std::vector<std::string> ignore_classes =
+    this->declare_parameter("ignore_classes", std::vector<std::string>{"negative"});
+  detector->classifier =
+    std::make_unique<NumberClassifier>(model_path, label_path, threshold, ignore_classes);
+
+  return detector;
 }
 
 void ArmorDetectorNode::create_debug_publishers()
@@ -192,18 +244,47 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     // 1. Convert ROS image message to OpenCV image
     cv::Mat image = cv_bridge::toCvCopy(msg, "bgr8")->image;
     // 2. Detect armors
-    if(openvino_detector_ != nullptr)
+    if(is_openvino_ == true)
     {
-        openvino_detector_->infer(image, detect_color_);
+        if(openvino_detector_ != nullptr)
+        {
+            openvino_detector_->infer(image, detect_color_);
+            // 3. Updata robots
+            get_robots(decision_armors_, openvino_detector_->armors_);
+            allrobots_adjust(decision_armors_);
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), "Openvino detector is nullptr!");
+        }
     }
-    else
+    else if(is_openvino_ == false)
     {
-        RCLCPP_ERROR(this->get_logger(), "Openvino detector is nullptr!");
+        if(lights_detector_ != nullptr)
+        {
+            std::vector<Armor> armors;
+            lights_detector_->detect(image);
+            for(size_t i = 0;i<lights_detector_->armors_.size();i++)
+            {
+                Armor armor;
+                armor.id = lights_detector_->armors_[i].id;
+                armor.color = lights_detector_->armors_[i].color;
+                armor.number_score = lights_detector_->armors_[i].number_score;
+                armor.color_score = lights_detector_->armors_[i].color_score;
+                armor.name = lights_detector_->armors_[i].name;
+                armor.four_points = lights_detector_->armors_[i].four_points;
+                armor.rect = lights_detector_->armors_[i].rect;
+                armors.push_back(armor);
+            }
+            // 3. Updata robots
+            get_robots(decision_armors_, armors);
+            allrobots_adjust(decision_armors_);
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), "Light detector is nullptr!");
+        }
     }
-
-    // 3. Updata robots
-    get_robots(decision_armors_, openvino_detector_->armors_);
-    allrobots_adjust(decision_armors_);
 
     // 4. Decide which armor to shoot
     DecisionArmor decision_armor;
@@ -292,7 +373,28 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     }
     if(is_debug_ == true)
     {
-        debug_deal(image, openvino_detector_->armors_, decision_armor);
+        if(is_openvino_ == true)
+        {
+            debug_deal(image, openvino_detector_->armors_, decision_armor);
+        }
+        else if(is_openvino_ == false)
+        {
+            std::vector<Armor> armors;
+            lights_detector_->detect(image);
+            for(size_t i = 0;i<lights_detector_->armors_.size();i++)
+            {
+                Armor armor;
+                armor.id = lights_detector_->armors_[i].id;
+                armor.color = lights_detector_->armors_[i].color;
+                armor.number_score = lights_detector_->armors_[i].number_score;
+                armor.color_score = lights_detector_->armors_[i].color_score;
+                armor.name = lights_detector_->armors_[i].name;
+                armor.four_points = lights_detector_->armors_[i].four_points;
+                armor.rect = lights_detector_->armors_[i].rect;
+                armors.push_back(armor);
+            }
+            debug_deal(image, armors, decision_armor);
+        }
     }
 }
 
