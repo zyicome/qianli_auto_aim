@@ -165,8 +165,12 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor
             if(armors[i].id == decision_armor.id)
             {
                 cv::polylines(debug_image, pts, true, cv::Scalar(0, 0, 255), 2);
+                cv::Point armor_center = cv::Point((armors[i].four_points[0].x + armors[i].four_points[2].x) / 2, (armors[i].four_points[0].y + armors[i].four_points[2].y) / 2);
                 //绘制距离
-                cv::putText(debug_image, std::to_string(decision_armor.distance), cv::Point((armors[i].four_points[0].x + armors[i].four_points[2].x) / 2, (armors[i].four_points[0].y + armors[i].four_points[2].y) / 2), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                cv::putText(debug_image, std::to_string(decision_armor.distance), armor_center, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                //绘制yaw值
+                double yaw = orientationToYaw(decision_armor.pose.orientation);
+                cv::putText(debug_image, std::to_string(yaw), armor_center + cv::Point(0, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
             }
             else
             {
@@ -324,6 +328,8 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 armor_msg.pose.position.y = tvec.at<double>(1);
                 armor_msg.pose.position.z = tvec.at<double>(2);
 
+                decision_armor.pose = armor_msg.pose;
+
                 armor_msg.id = decision_armor.id;
                 armor_msg.color = decision_armor.color;
                 if(armor_msg.id == 0)
@@ -428,6 +434,23 @@ void ArmorDetectorNode::test()
 
 }
 
+// 用于将给定的四元数表示的姿态（朝向）转换为偏航角（yaw）
+double ArmorDetectorNode::orientationToYaw(const geometry_msgs::msg::Quaternion & q)
+{
+  // Get armor yaw
+  tf2::Quaternion tf_q;
+  tf2::fromMsg(q, tf_q);
+  double roll, pitch, yaw;
+  tf2::Matrix3x3(tf_q).getRPY(roll, pitch, yaw);
+  // Make yaw change continuous (-pi~pi to -inf~inf)
+  // 将当前计算得到的偏航角 yaw 与上一次记录的偏航角 last_yaw_ 进行比较，
+  // 使用 angles::shortest_angular_distance 函数计算两者之间的最短角度差，
+  // 从而确保偏航角变化在连续范围内。这一步旨在解决角度从 -pi 到 pi 的跳变问题，使角度变化连续。
+  yaw = last_yaw_ + angles::shortest_angular_distance(last_yaw_, yaw);
+  last_yaw_ = yaw;
+  return yaw;
+}
+
 //-----------------------------------------------------------
 void ArmorDetectorNode::robots_init()
 {
@@ -442,6 +465,12 @@ void ArmorDetectorNode::robots_init()
     decision_armor.distance = 0;
     decision_armor.distance_to_image_center = 0;
     decision_armor.four_points = {cv::Point(0, 0), cv::Point(0, 0), cv::Point(0, 0), cv::Point(0, 0)};
+    decision_armor.pose.position.x = 0;
+    decision_armor.pose.position.y = 0;
+    decision_armor.pose.position.z = 0;
+    decision_armor.pose.orientation.x = 0;
+    decision_armor.pose.orientation.y = 0;
+    decision_armor.pose.orientation.z = 0;
     for(int i = 0;i < 9; i++)
     {
         decision_armors_.push_back(decision_armor);

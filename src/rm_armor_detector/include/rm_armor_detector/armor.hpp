@@ -5,6 +5,8 @@
 #include <vector>
 #include <string>
 
+#include <geometry_msgs/msg/pose_stamped.hpp>
+
 const int RED = 0;
 const int BLUE = 1;
 
@@ -22,6 +24,7 @@ struct DecisionArmor
     float distance;
     float distance_to_image_center;
     std::vector<cv::Point2f> four_points;
+    geometry_msgs::msg::Pose pose;
 };
 
 struct Armor

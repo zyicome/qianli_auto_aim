@@ -12,6 +12,7 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/convert.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include "angles/angles.h"
 
 #include "rm_msgs/msg/armor.hpp"
 #include "rm_msgs/msg/status.hpp"
@@ -34,6 +35,7 @@ public:
     void status_callback(const rm_msgs::msg::Status::SharedPtr msg);
     void image_callback(const sensor_msgs::msg::Image::SharedPtr msg);
     void test();
+    double orientationToYaw(const geometry_msgs::msg::Quaternion & q);
 
     void robots_init();
     void get_robots(std::vector<DecisionArmor> &decision_armors, const std::vector<Armor> &armors);
@@ -53,6 +55,8 @@ public:
     cv::Mat camera_matrix_;
     cv::Mat distortion_coefficients_;
     cv::Point2f image_center_;
+
+    double last_yaw_;
 
     std::vector<int> ignore_armors_;
     std::vector<DecisionArmor> decision_armors_;
