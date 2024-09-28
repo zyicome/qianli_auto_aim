@@ -23,7 +23,9 @@ struct DecisionArmor
     int priority; // 优先级越高数字越小，优先级高先打，优先级相同则选择里图像中心最近的
     float distance;
     float distance_to_image_center;
+    double yaw;
     std::vector<cv::Point2f> four_points;
+    std_msgs::msg::Header header;
     geometry_msgs::msg::Pose pose;
 };
 

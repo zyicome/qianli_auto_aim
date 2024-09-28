@@ -8,6 +8,9 @@ ProjectionYaw::ProjectionYaw()
 
 void ProjectionYaw::parameters_init()
 {
+    PITCH_ = 15.0 * CV_PI / 180.0;
+    ITERATIONS_NUM_ = 12;
+
     big_armor_world_points_ = {
         cv::Point3f(-0.115, 0.0265, 0.),
         cv::Point3f(-0.115, -0.0265, 0.),
@@ -21,16 +24,38 @@ void ProjectionYaw::parameters_init()
         cv::Point3f(0.068, -0.0275, 0.),
         cv::Point3f(0.068, 0.0275, 0.)
     };
+}
 
-    // Subscriber with tf2 message_filter
-    // tf2 relevant
-    tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
-    // Create the timer interface before call to waitForTransform,
-    // to avoid a tf2_ros::CreateTimerInterfaceException exception
-    auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
-        this->get_node_base_interface(), this->get_node_timers_interface());
-    tf2_buffer_->setCreateTimerInterface(timer_interface);
-    tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
+void ProjectionYaw::set_matrix(const cv::Mat& camera_matrix, const cv::Mat& dist_coeffs)
+{
+    camera_matrix_ = camera_matrix;
+    dist_coeffs_ = dist_coeffs;
+}
+
+void ProjectionYaw::update_tf2_buffer(const std::shared_ptr<tf2_ros::Buffer>& tf2_buffer, const std::shared_ptr<tf2_ros::TransformListener>& tf2_listener)
+{
+    tf2_buffer_ = tf2_buffer;
+    tf2_listener_ = tf2_listener;
+}
+
+double ProjectionYaw::get_yaw(
+    const DecisionArmor& decision_armor
+)
+{
+    double pred_yaw = 0.0;
+    pred_yaw = update_pred_yaw(decision_armor, -CV_PI / 2, CV_PI / 2, ITERATIONS_NUM_);
+    return reduced_angle(pred_yaw);
+}
+
+double ProjectionYaw::update(
+    const DecisionArmor& decision_armor,
+    const double& pred_yaw
+)
+{
+    std::vector<cv::Point2f> pred_points = get_pred_points(decision_armor, PITCH_, pred_yaw);
+    std::vector<cv::Point2f> points = decision_armor.four_points;
+    double cost = get_cost(pred_points, points, pred_yaw);
+    return cost;
 }
 
 double ProjectionYaw::get_cost(const std::vector<cv::Point2f>& pred_points, 
@@ -43,9 +68,9 @@ double ProjectionYaw::get_cost(const std::vector<cv::Point2f>& pred_points,
         std::size_t p = (i + 1u) % size;
         cv::Point2f pred_point_standard = pred_points[p] - pred_points[i];
         cv::Point2f point_standard = points[p] - points[i];
-        double pixel_dis = (0.5 * ((pred_points[i] - points[i]).norm() + (pred_points[p] - points[p]).norm())
-                            + std::fabs(pred_point_standard.norm() - point_standard.norm())) / pred_point_standard.norm();
-        double angular_dis = pred_point_standard.norm() * get_abs_angle(pred_point_standard, point_standard) / pred_point_standard.norm();
+        double pixel_dis = (0.5 * (cv::norm(pred_points[i] - points[i]) + cv::norm(pred_points[p] - points[p]))
+                            + std::fabs(cv::norm(pred_point_standard) - cv::norm(point_standard))) / cv::norm(pred_point_standard);
+        double angular_dis = cv::norm(pred_point_standard) * get_abs_angle(pred_point_standard, point_standard) / cv::norm(pred_point_standard);
         double cost_i = std::pow(pixel_dis * std::sin(pred_yaw), 2) + std::pow(angular_dis * std::cos(pred_yaw), 2);
         cost += std::sqrt(cost_i);
     }
@@ -54,17 +79,17 @@ double ProjectionYaw::get_cost(const std::vector<cv::Point2f>& pred_points,
 
 double ProjectionYaw::get_abs_angle(const cv::Point2f& first_point, const cv::Point2f& second_point)
 {
-    if(first_point.norm() == 0 || second_point.norm() == 0)
+    if(cv::norm(first_point) == 0 || cv::norm(second_point) == 0)
     {
         std::cout << "Error: The norm of the point is zero!" << std::endl;
         return 0;
     }
-    double cos_theta = (first_point.x * second_point.x + first_point.y * second_point.y) / (first_point.norm() * second_point.norm());
+    double cos_theta = (first_point.x * second_point.x + first_point.y * second_point.y) / (cv::norm(first_point) * cv::norm(second_point));
     return std::acos(cos_theta);
 }
 
 // 利用三分法计算极小值，不断更新预测的偏航角
-double ProjectionYaw::update_pred_yaw(double left_yaw, double right_yaw,const int& ITERATIONS_NUM)
+double ProjectionYaw::update_pred_yaw(const DecisionArmor& decision_armor,double left_yaw, double right_yaw,const int& ITERATIONS_NUM)
 {
     double phi = (std::sqrt(5.0) - 1.0) / 2.0;
     int choice = -1;
@@ -76,11 +101,11 @@ double ProjectionYaw::update_pred_yaw(double left_yaw, double right_yaw,const in
         double mr = left_yaw + (right_yaw - left_yaw) * phi;
         if(choice != 0)
         {
-            left_cost = get_cost(ml);
+            left_cost = update(decision_armor, ml);
         }
         if(choice != 1)
         {
-            right_cost = get_cost(mr);
+            right_cost = update(decision_armor, mr);
         }
         if(left_cost < right_cost)
         {
@@ -113,19 +138,82 @@ std::vector<cv::Point3f> ProjectionYaw::get_armor_points(
         armor_world_points = small_armor_world_points_;
     }
 
-    // 将装甲板坐标变换到horizontal平面
-    geometry_msgs::msg::PointStamped armor_center;
-    armor_center.point.x = decision_armor.pose.position.x;
-    armor_center.point.y = decision_armor.pose.position.y;
-    armor_center.point.z = decision_armor.pose.position.z;
-    armor_center.header = decision_armor.pose.header;
-    tf2_buffer_->transform(armor_center, armor_center, "horizontal_camera_link", rclcpp::Duration(0.1));
+    geometry_msgs::msg::PoseStamped ros_armor_center;
+    try {
+        // Use the latest available transform instead of a specific timestamp
+        geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
+            "camera_optical_frame", "horizontal_camera_link", 
+            tf2::TimePointZero); // Use the latest available transform
 
+        // 将装甲板坐标变换到horizontal平面
+        ros_armor_center.pose.position.x = decision_armor.pose.position.x;
+        ros_armor_center.pose.position.y = decision_armor.pose.position.y;
+        ros_armor_center.pose.position.z = decision_armor.pose.position.z;
+        ros_armor_center.header.frame_id = "camera_optical_frame";
+        ros_armor_center.header.stamp = decision_armor.header.stamp;
+        
+        tf2::doTransform(ros_armor_center, ros_armor_center, transformStamped);
+    } catch (tf2::TransformException &ex) {
+        std::cout << "Could not transform armor center: " << ex.what() << std::endl;
+    }
+
+    cv::Point3f armor_center = cv::Point3f(ros_armor_center.pose.position.x, ros_armor_center.pose.position.y, ros_armor_center.pose.position.z);
+
+    // y z x 
     cv::Mat radius_vec = (cv::Mat_<double>(2, 1) << 0, 1);
     radius_vec = rotate(radius_vec, pred_yaw);
     cv::Mat x_2_vec = rotate(radius_vec, CV_PI / 2);
     cv::Mat x_vec = (cv::Mat_<double>(3, 1) << x_2_vec.at<double>(0), x_2_vec.at<double>(1), 0);
+    cv::Mat y_vec = (cv::Mat_<double>(3, 1) << - radius_vec.at<double>(0) * std::sin(pitch),- radius_vec.at<double>(1) * std::sin(pitch)
+                                                , std::cos(pitch));
+    std::vector<cv::Point3f> armor_points;
+    for(size_t i = 0; i < armor_world_points.size(); i++)
+    {
+        cv::Mat x_trans = armor_world_points[i].x * x_vec;
+        cv::Point3f x_trans_point = cv::Point3f(x_trans.at<double>(0,0),x_trans.at<double>(1,0),x_trans.at<double>(2,0));
+        cv::Mat y_trans = armor_world_points[i].y * y_vec;
+        cv::Point3f y_trans_point = cv::Point3f(y_trans.at<double>(0,0),y_trans.at<double>(1,0),y_trans.at<double>(2,0));
+        armor_points.push_back(armor_center + x_trans_point + y_trans_point);
+    }
+    return armor_points;
+}
+
+std::vector<cv::Point2f> ProjectionYaw::get_pred_points(
+    const DecisionArmor& decision_armor,
+    const double& pitch,
+    const double& pred_yaw
+)
+{
+    std::vector<cv::Point3f> armor_points = get_armor_points(decision_armor, pitch, pred_yaw);
+    std::vector<cv::Point2f> pred_points;
     
+    std::vector<cv::Point3f> camera_points;
+    for(size_t i = 0; i < armor_points.size(); i++)
+    {
+        geometry_msgs::msg::PointStamped transform_point;
+        try{
+            geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
+                "horizontal_camera_link", "camera_optical_frame", 
+                tf2::TimePointZero); // Use the latest available transform
+
+            transform_point.point.x = armor_points[i].x;
+            transform_point.point.y = armor_points[i].y;
+            transform_point.point.z = armor_points[i].z;
+            transform_point.header.frame_id = "horizontal_camera_link";
+            transform_point.header.stamp = decision_armor.header.stamp;
+            
+            tf2::doTransform(transform_point, transform_point, transformStamped);
+        } catch (tf2::TransformException &ex) {
+            std::cout << "Could not transform armor center: " << ex.what() << std::endl;
+        }
+        cv::Point3f armor_point = cv::Point3f(transform_point.point.x, transform_point.point.y, transform_point.point.z);
+        camera_points.push_back(armor_point);
+    }
+    // 直接从相机坐标系转到像素坐标系，rvec和tvec都是0
+    cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64F);
+    cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64F);
+    cv::projectPoints(camera_points, rvec, tvec, camera_matrix_, dist_coeffs_, pred_points);
+    return pred_points;
 }
 
 // 将二维向量逆时针旋转角度angle
@@ -135,4 +223,10 @@ cv::Mat ProjectionYaw::rotate(const cv::Mat& vec, const double& angle)
 {
     cv::Mat rotate_mat = (cv::Mat_<double>(2, 2) << std::cos(angle), -std::sin(angle), std::sin(angle), std::cos(angle));
     return rotate_mat * vec;
+}
+
+// 限制到 -pi ~ pi
+double ProjectionYaw::reduced_angle(const double& x) 
+{
+    return std::atan2(std::sin(x), std::cos(x));
 }

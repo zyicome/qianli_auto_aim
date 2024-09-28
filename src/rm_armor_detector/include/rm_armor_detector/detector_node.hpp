@@ -21,6 +21,7 @@
 #include "pnp_solver.hpp"
 #include "lights_detector.hpp"
 #include "armor.hpp"
+#include "projection_yaw.hpp"
 
 namespace rm_armor_detector
 {
@@ -64,12 +65,20 @@ public:
     std::shared_ptr<OpenvinoDetector> openvino_detector_;
     std::shared_ptr<LightsDetector> lights_detector_;
     std::shared_ptr<PnpSolver> pnp_solver_;
+    std::shared_ptr<ProjectionYaw> projection_yaw_;
 
     rclcpp::Publisher<rm_msgs::msg::Armor>::SharedPtr armor_pub_;
 
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
     rclcpp::Subscription<rm_msgs::msg::Status>::SharedPtr status_sub_;
+
+    //-----------------------------------------------------------------
+    // tf2
+    // Subscriber with tf2 message_filter
+    std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+    //-----------------------------------------------------------------
 
     //-------------------------------------------------------------------------------------------
     // debug

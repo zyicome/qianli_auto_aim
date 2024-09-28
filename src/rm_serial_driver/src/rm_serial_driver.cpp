@@ -223,6 +223,16 @@ void RMSerialDriver::receiveData()
                       t.transform.rotation = tf2::toMsg(q);
                       tf_broadcaster_->sendTransform(t);
 
+                      // 创建坐标变换消息和发布
+                      geometry_msgs::msg::TransformStamped t_q;
+                      t_q.header.stamp = this->now() - rclcpp::Duration::from_seconds(timestamp_offset_);
+                      t_q.header.frame_id = "camera_optical_frame";
+                      t_q.child_frame_id = "horizontal_camera_link";
+                      tf2::Quaternion q_t;
+                      q_t.setRPY(- packet.pitch / 57.3f, 180 / 57.3f, 0.0);
+                      t_q.transform.rotation = tf2::toMsg(q_t);
+                      tf_broadcaster_->sendTransform(t_q);
+
                       receive_serial_msg_.header.frame_id = "odom";
                       receive_serial_msg_.header.stamp = this->now();
                       receive_serial_msg_.pitch = packet.pitch;

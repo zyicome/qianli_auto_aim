@@ -99,6 +99,16 @@ void ArmorDetectorNode::parameters_init()
     detector_fps_ = 0;
     detector_now_fps_ = 0;
 
+    // Subscriber with tf2 message_filter
+    // tf2 relevant
+    tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
+    // Create the timer interface before call to waitForTransform,
+    // to avoid a tf2_ros::CreateTimerInterfaceException exception
+    auto timer_interface = std::make_shared<tf2_ros::CreateTimerROS>(
+        this->get_node_base_interface(), this->get_node_timers_interface());
+    tf2_buffer_->setCreateTimerInterface(timer_interface);
+    tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
+
     RCLCPP_INFO(this->get_logger(), "Finished init parameters successfully!");
 }
 
@@ -171,6 +181,8 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor
                 //绘制yaw值
                 double yaw = orientationToYaw(decision_armor.pose.orientation);
                 cv::putText(debug_image, std::to_string(yaw), armor_center + cv::Point(0, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                double pred_yaw = decision_armor.yaw;
+                cv::putText(debug_image, std::to_string(pred_yaw), armor_center + cv::Point(0, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
             }
             else
             {
@@ -205,6 +217,10 @@ void ArmorDetectorNode::camera_info_callback(const sensor_msgs::msg::CameraInfo:
 
     pnp_solver_ = std::make_shared<PnpSolver>();
     pnp_solver_->set_matrix(camera_width_, camera_height_, camera_matrix_, distortion_coefficients_);
+
+    projection_yaw_ = std::make_shared<ProjectionYaw>();
+    projection_yaw_->set_matrix(camera_matrix_, distortion_coefficients_);
+
     camera_info_sub_.reset();
     RCLCPP_INFO(this->get_logger(), "Finished receive camera info successfully!");
 }
@@ -298,7 +314,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     if(decision_armor.color != 2)
     {
         // 5. Solve PnP
-        if(pnp_solver_ != nullptr)
+        if(pnp_solver_ != nullptr && projection_yaw_ != nullptr)
         {
             cv::Mat rvec, tvec;
             bool success = pnp_solver_->solve_pnp(decision_armor.four_points, rvec, tvec, decision_armor.is_big_armor);
@@ -328,9 +344,13 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 armor_msg.pose.position.y = tvec.at<double>(1);
                 armor_msg.pose.position.z = tvec.at<double>(2);
 
-                armor_msg.pose.header = msg->header;
+                decision_armor.header = msg->header;
 
                 decision_armor.pose = armor_msg.pose;
+
+                projection_yaw_->update_tf2_buffer(tf2_buffer_, tf2_listener_);
+                double yaw = projection_yaw_->get_yaw(decision_armor);
+                decision_armor.yaw = yaw;
 
                 armor_msg.id = decision_armor.id;
                 armor_msg.color = decision_armor.color;
@@ -365,7 +385,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
         }
         else
         {
-            RCLCPP_ERROR(this->get_logger(), "Pnp solver is nullptr!");
+            RCLCPP_ERROR(this->get_logger(), "Pnp solver or projection solver is nullptr!");
         }
     }
     else // 未识别到有效装甲板，也需要发布消息，刷新tracker
