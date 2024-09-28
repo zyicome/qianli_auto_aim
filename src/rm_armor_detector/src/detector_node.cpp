@@ -328,6 +328,8 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 armor_msg.pose.position.y = tvec.at<double>(1);
                 armor_msg.pose.position.z = tvec.at<double>(2);
 
+                armor_msg.pose.header = msg->header;
+
                 decision_armor.pose = armor_msg.pose;
 
                 armor_msg.id = decision_armor.id;
