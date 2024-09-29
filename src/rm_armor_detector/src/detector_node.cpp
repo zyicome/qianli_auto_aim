@@ -174,6 +174,17 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor
             }
             if(armors[i].id == decision_armor.id)
             {
+                if(pred_points_.size() == 4)
+                {
+                    cv::putText(debug_image, "1", cv::Point(pred_points_[0].x, pred_points_[0].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                    cv::putText(debug_image, "2", cv::Point(pred_points_[1].x, pred_points_[1].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                    cv::putText(debug_image, "3", cv::Point(pred_points_[2].x, pred_points_[2].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                    cv::putText(debug_image, "4", cv::Point(pred_points_[3].x, pred_points_[3].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                }
+                cv::putText(debug_image, "1", cv::Point(armors[i].four_points[0].x, armors[i].four_points[0].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                cv::putText(debug_image, "2", cv::Point(armors[i].four_points[1].x, armors[i].four_points[1].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                cv::putText(debug_image, "3", cv::Point(armors[i].four_points[2].x, armors[i].four_points[2].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                cv::putText(debug_image, "4", cv::Point(armors[i].four_points[3].x, armors[i].four_points[3].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
                 cv::polylines(debug_image, pts, true, cv::Scalar(0, 0, 255), 2);
                 cv::Point armor_center = cv::Point((armors[i].four_points[0].x + armors[i].four_points[2].x) / 2, (armors[i].four_points[0].y + armors[i].four_points[2].y) / 2);
                 //绘制距离
@@ -182,7 +193,7 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor
                 double yaw = orientationToYaw(decision_armor.pose.orientation);
                 cv::putText(debug_image, std::to_string(yaw), armor_center + cv::Point(0, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
                 double pred_yaw = decision_armor.yaw;
-                cv::putText(debug_image, std::to_string(pred_yaw), armor_center + cv::Point(0, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                cv::putText(debug_image, std::to_string(pred_yaw * 57.3f), armor_center + cv::Point(0, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
             }
             else
             {
@@ -350,6 +361,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
 
                 projection_yaw_->update_tf2_buffer(tf2_buffer_, tf2_listener_);
                 double yaw = projection_yaw_->get_yaw(decision_armor);
+                pred_points_ = projection_yaw_->get_pred_points(decision_armor, projection_yaw_->PITCH_, yaw);
                 decision_armor.yaw = yaw;
 
                 armor_msg.id = decision_armor.id;
@@ -486,6 +498,7 @@ void ArmorDetectorNode::robots_init()
     decision_armor.priority = 100;
     decision_armor.distance = 0;
     decision_armor.distance_to_image_center = 0;
+    decision_armor.yaw = 0;
     decision_armor.four_points = {cv::Point(0, 0), cv::Point(0, 0), cv::Point(0, 0), cv::Point(0, 0)};
     decision_armor.pose.position.x = 0;
     decision_armor.pose.position.y = 0;

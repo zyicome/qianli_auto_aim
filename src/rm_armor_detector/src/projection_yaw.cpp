@@ -10,18 +10,21 @@ void ProjectionYaw::parameters_init()
 {
     PITCH_ = 15.0 * CV_PI / 180.0;
     ITERATIONS_NUM_ = 12;
+    DETECTOR_ERROR_PIXEL_BY_SLOPE = 2;
 
+    // 1  2
+    // 4  3
     big_armor_world_points_ = {
-        cv::Point3f(-0.115, 0.0265, 0.),
-        cv::Point3f(-0.115, -0.0265, 0.),
         cv::Point3f(0.115, -0.0265, 0.),
+        cv::Point3f(-0.115, -0.0265, 0.),
+        cv::Point3f(-0.115, 0.0265, 0.),
         cv::Point3f(0.115, 0.0265, 0.)
     };
 
     small_armor_world_points_ = {
-        cv::Point3f(-0.068, 0.0275, 0.),
-        cv::Point3f(-0.068, -0.0275, 0.),
         cv::Point3f(0.068, -0.0275, 0.),
+        cv::Point3f(-0.068, -0.0275, 0.),
+        cv::Point3f(-0.068, 0.0275, 0.),
         cv::Point3f(0.068, 0.0275, 0.)
     };
 }
@@ -44,7 +47,8 @@ double ProjectionYaw::get_yaw(
 {
     double pred_yaw = 0.0;
     pred_yaw = update_pred_yaw(decision_armor, -CV_PI / 2, CV_PI / 2, ITERATIONS_NUM_);
-    return reduced_angle(pred_yaw);
+    //return reduced_angle(pred_yaw);
+    return pred_yaw;
 }
 
 double ProjectionYaw::update(
@@ -71,7 +75,7 @@ double ProjectionYaw::get_cost(const std::vector<cv::Point2f>& pred_points,
         double pixel_dis = (0.5 * (cv::norm(pred_points[i] - points[i]) + cv::norm(pred_points[p] - points[p]))
                             + std::fabs(cv::norm(pred_point_standard) - cv::norm(point_standard))) / cv::norm(pred_point_standard);
         double angular_dis = cv::norm(pred_point_standard) * get_abs_angle(pred_point_standard, point_standard) / cv::norm(pred_point_standard);
-        double cost_i = std::pow(pixel_dis * std::sin(pred_yaw), 2) + std::pow(angular_dis * std::cos(pred_yaw), 2);
+        double cost_i = std::pow(pixel_dis * std::sin(pred_yaw), 2) + std::pow(angular_dis * std::cos(pred_yaw), 2) * DETECTOR_ERROR_PIXEL_BY_SLOPE;
         cost += std::sqrt(cost_i);
     }
     return cost;
@@ -107,6 +111,8 @@ double ProjectionYaw::update_pred_yaw(const DecisionArmor& decision_armor,double
         {
             right_cost = update(decision_armor, mr);
         }
+        std::cout << "left_cost: " << left_cost << " right_cost: " << right_cost << std::endl;
+        std::cout << "ml: " << ml << " mr: " << mr << std::endl;
         if(left_cost < right_cost)
         {
             right_yaw = mr;
@@ -120,6 +126,8 @@ double ProjectionYaw::update_pred_yaw(const DecisionArmor& decision_armor,double
             choice = 0;
         }
     }
+    std::cout << "left_yaw: " << left_yaw << " right_yaw: " << right_yaw << std::endl;
+    std::cout << "result: " << ((left_yaw + right_yaw) / 2.0) * 57.3f << std::endl;
     return (left_yaw + right_yaw) / 2;
 }
 
@@ -159,21 +167,21 @@ std::vector<cv::Point3f> ProjectionYaw::get_armor_points(
 
     cv::Point3f armor_center = cv::Point3f(ros_armor_center.pose.position.x, ros_armor_center.pose.position.y, ros_armor_center.pose.position.z);
 
-    // y z x 
+    // x z y
     cv::Mat radius_vec = (cv::Mat_<double>(2, 1) << 0, 1);
     radius_vec = rotate(radius_vec, pred_yaw);
-    cv::Mat x_2_vec = rotate(radius_vec, CV_PI / 2);
-    cv::Mat x_vec = (cv::Mat_<double>(3, 1) << x_2_vec.at<double>(0), x_2_vec.at<double>(1), 0);
-    cv::Mat y_vec = (cv::Mat_<double>(3, 1) << - radius_vec.at<double>(0) * std::sin(pitch),- radius_vec.at<double>(1) * std::sin(pitch)
-                                                , std::cos(pitch));
+    cv::Mat xz_2_vec = rotate(radius_vec, - CV_PI / 2);
+    cv::Mat xz_vec = (cv::Mat_<double>(3, 1) << xz_2_vec.at<double>(0), xz_2_vec.at<double>(1), 0);
+    cv::Mat y_vec = (cv::Mat_<double>(3, 1) << radius_vec.at<double>(0) * std::sin(pitch), radius_vec.at<double>(1) * std::sin(pitch)
+                                                , - std::cos(pitch));
     std::vector<cv::Point3f> armor_points;
     for(size_t i = 0; i < armor_world_points.size(); i++)
     {
-        cv::Mat x_trans = armor_world_points[i].x * x_vec;
-        cv::Point3f x_trans_point = cv::Point3f(x_trans.at<double>(0,0),x_trans.at<double>(1,0),x_trans.at<double>(2,0));
+        cv::Mat xz_trans = armor_world_points[i].x * xz_vec;
+        cv::Point3f xz_trans_point = cv::Point3f(xz_trans.at<double>(0,0),xz_trans.at<double>(1,0),xz_trans.at<double>(2,0));
         cv::Mat y_trans = armor_world_points[i].y * y_vec;
         cv::Point3f y_trans_point = cv::Point3f(y_trans.at<double>(0,0),y_trans.at<double>(1,0),y_trans.at<double>(2,0));
-        armor_points.push_back(armor_center + x_trans_point + y_trans_point);
+        armor_points.push_back(armor_center + xz_trans_point + y_trans_point);
     }
     return armor_points;
 }

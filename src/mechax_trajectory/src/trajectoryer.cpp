@@ -396,7 +396,7 @@ int Trajectoryer::solve_trajectory()
     if(idx != 0)
     {
         is_change_armor = true;
-        std::cout << "mechax_trajectory change armor" << std::endl;
+        //std::cout << "mechax_trajectory change armor" << std::endl;
     }
 //得到results :存放了所有装甲板的位置信息 
 //得到idx :选择的装甲板的编号

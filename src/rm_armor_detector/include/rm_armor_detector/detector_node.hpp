@@ -85,6 +85,8 @@ public:
     void create_debug_publishers();
     void destroy_debug_publishers();
     void debug_deal(const cv::Mat &image, const std::vector<Armor> &armors, const DecisionArmor &decision_armor);
+
+    std::vector<cv::Point2f> pred_points_;
     
     image_transport::Publisher result_image_pub_;
 

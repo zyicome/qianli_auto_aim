@@ -24,6 +24,8 @@ struct DecisionArmor
     float distance;
     float distance_to_image_center;
     double yaw;
+    // 1   2
+    // 4   3
     std::vector<cv::Point2f> four_points;
     std_msgs::msg::Header header;
     geometry_msgs::msg::Pose pose;

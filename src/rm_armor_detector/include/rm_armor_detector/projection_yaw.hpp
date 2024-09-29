@@ -34,6 +34,7 @@ public:
 
     double PITCH_;
     int ITERATIONS_NUM_;
+    int DETECTOR_ERROR_PIXEL_BY_SLOPE;
     std::vector<cv::Point3f> big_armor_world_points_;
     std::vector<cv::Point3f> small_armor_world_points_;
 
