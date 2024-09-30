@@ -191,7 +191,7 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor
                 cv::putText(debug_image, std::to_string(decision_armor.distance), armor_center, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
                 //绘制yaw值
                 double yaw = orientationToYaw(decision_armor.pose.orientation);
-                cv::putText(debug_image, std::to_string(yaw), armor_center + cv::Point(0, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                cv::putText(debug_image, std::to_string(yaw * 57.3f), armor_center + cv::Point(0, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
                 double pred_yaw = decision_armor.yaw;
                 cv::putText(debug_image, std::to_string(pred_yaw * 57.3f), armor_center + cv::Point(0, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
             }
@@ -363,6 +363,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 double yaw = projection_yaw_->get_yaw(decision_armor);
                 pred_points_ = projection_yaw_->get_pred_points(decision_armor, projection_yaw_->PITCH_, yaw);
                 decision_armor.yaw = yaw;
+                armor_msg.pose.orientation.y = yaw;
 
                 armor_msg.id = decision_armor.id;
                 armor_msg.color = decision_armor.color;

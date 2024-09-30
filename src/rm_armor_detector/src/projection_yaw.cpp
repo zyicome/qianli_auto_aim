@@ -48,7 +48,7 @@ double ProjectionYaw::get_yaw(
     double pred_yaw = 0.0;
     pred_yaw = update_pred_yaw(decision_armor, -CV_PI / 2, CV_PI / 2, ITERATIONS_NUM_);
     //return reduced_angle(pred_yaw);
-    return pred_yaw;
+    return reduced_angle(pred_yaw);
 }
 
 double ProjectionYaw::update(
@@ -172,15 +172,17 @@ std::vector<cv::Point3f> ProjectionYaw::get_armor_points(
     radius_vec = rotate(radius_vec, pred_yaw);
     cv::Mat xz_2_vec = rotate(radius_vec, - CV_PI / 2);
     cv::Mat xz_vec = (cv::Mat_<double>(3, 1) << xz_2_vec.at<double>(0), xz_2_vec.at<double>(1), 0);
-    cv::Mat y_vec = (cv::Mat_<double>(3, 1) << radius_vec.at<double>(0) * std::sin(pitch), radius_vec.at<double>(1) * std::sin(pitch)
-                                                , - std::cos(pitch));
+    cv::Mat y_vec = (cv::Mat_<double>(3, 1) << -radius_vec.at<double>(0) * std::sin(pitch), -radius_vec.at<double>(1) * std::sin(pitch)
+                                                ,  std::cos(pitch));
     std::vector<cv::Point3f> armor_points;
     for(size_t i = 0; i < armor_world_points.size(); i++)
     {
         cv::Mat xz_trans = armor_world_points[i].x * xz_vec;
-        cv::Point3f xz_trans_point = cv::Point3f(xz_trans.at<double>(0,0),xz_trans.at<double>(1,0),xz_trans.at<double>(2,0));
+        // xzy 转为 xyz
+        cv::Point3f xz_trans_point = cv::Point3f(xz_trans.at<double>(0,0),xz_trans.at<double>(2,0),xz_trans.at<double>(1,0));
         cv::Mat y_trans = armor_world_points[i].y * y_vec;
-        cv::Point3f y_trans_point = cv::Point3f(y_trans.at<double>(0,0),y_trans.at<double>(1,0),y_trans.at<double>(2,0));
+        // xzy 转为 xyz
+        cv::Point3f y_trans_point = cv::Point3f(y_trans.at<double>(0,0),y_trans.at<double>(2,0),y_trans.at<double>(1,0));
         armor_points.push_back(armor_center + xz_trans_point + y_trans_point);
     }
     return armor_points;
