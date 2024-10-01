@@ -172,7 +172,7 @@ std::vector<cv::Point3f> ProjectionYaw::get_armor_points(
     radius_vec = rotate(radius_vec, pred_yaw);
     cv::Mat xz_2_vec = rotate(radius_vec, - CV_PI / 2);
     cv::Mat xz_vec = (cv::Mat_<double>(3, 1) << xz_2_vec.at<double>(0), xz_2_vec.at<double>(1), 0);
-    cv::Mat y_vec = (cv::Mat_<double>(3, 1) << -radius_vec.at<double>(0) * std::sin(pitch), -radius_vec.at<double>(1) * std::sin(pitch)
+    cv::Mat y_vec = (cv::Mat_<double>(3, 1) << radius_vec.at<double>(0) * std::sin(pitch), radius_vec.at<double>(1) * std::sin(pitch)
                                                 ,  std::cos(pitch));
     std::vector<cv::Point3f> armor_points;
     for(size_t i = 0; i < armor_world_points.size(); i++)
