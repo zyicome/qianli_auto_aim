@@ -14,14 +14,13 @@
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
-
-
 #include <std_msgs/msg/float64.hpp>
 
 #include "rm_msgs/msg/receive_serial.hpp"
 #include "rm_msgs/msg/send_serial.hpp"
 #include "rm_msgs/msg/target.hpp"
 #include "rm_msgs/msg/bias.hpp"
+#include "rm_msgs/msg/closed_loop.hpp"
 
 namespace rm_trajectory
 {
@@ -111,6 +110,8 @@ public:
     float latency_bias_time;
     rm_msgs::msg::Bias bias_time_msg;
     //------------------
+    rm_msgs::msg::ClosedLoop closed_loop_msg_;
+    //------------------
     float randa;
     bool is_hero;
     double max_yaw_diff;
@@ -125,6 +126,7 @@ public:
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr maker_pub_;
     rclcpp::Publisher<rm_msgs::msg::Bias>::SharedPtr bias_time_pub_;
     rclcpp::Publisher<rm_msgs::msg::SendSerial>::SharedPtr result_pub_;
+    rclcpp::Publisher<rm_msgs::msg::ClosedLoop>::SharedPtr closed_loop_pub_;
     //------------------
     //timer
     //------------------

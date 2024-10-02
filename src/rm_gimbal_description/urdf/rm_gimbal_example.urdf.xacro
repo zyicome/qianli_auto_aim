@@ -36,8 +36,11 @@
     <child link="camera_optical_frame" />
   </joint>
 
+  <link name="horizontal_camera_link" />
+
   <joint name="horizontal_camera_joint" type="floating">
-    <parent link="camera_optical_joint" />
-    <child link="horizontal_camera_joint" />
+    <parent link="camera_optical_frame" />
+    <child link="horizontal_camera_link" />
   </joint>
+
 </robot>

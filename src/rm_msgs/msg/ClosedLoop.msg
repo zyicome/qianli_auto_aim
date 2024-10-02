@@ -1,0 +1,10 @@
+std_msgs/Header image_header
+std_msgs/Header shoot_header
+string id
+int8 armor_num
+float64 r
+float64 another_r
+float64 dz
+float64 yaw
+geometry_msgs/Pose now_pose
+geometry_msgs/Pose pred_pose

@@ -63,6 +63,9 @@ Trajectoryer::Trajectoryer(const rclcpp::NodeOptions & options) : Node("trajecto
 
     bias_time_pub_ = this->create_publisher<rm_msgs::msg::Bias>(
         "/bias/time", 10);
+
+    closed_loop_pub_ = this->create_publisher<rm_msgs::msg::ClosedLoop>(
+        "/trajectory/closed_loop", 10);
 }
 
 //用于参数初始化，主要需要修改的参数为
@@ -546,6 +549,11 @@ void Trajectoryer::targetCallback(const rm_msgs::msg::Target msg)
     r_2 = msg.radius_2;
     dz = msg.dz;
 
+    // 闭环数据收集
+    closed_loop_msg_.now_pose.position.x = car_ros_x;
+    closed_loop_msg_.now_pose.position.y = car_ros_y;
+    closed_loop_msg_.now_pose.position.z = armor_ros_z;
+
     if(is_tracking)
     {
         rm_msgs::msg::SendSerial result;
@@ -597,6 +605,23 @@ void Trajectoryer::targetCallback(const rm_msgs::msg::Target msg)
                 result.distance = distance;
             }
             result_pub_->publish(result);
+
+            // 闭环数据收集
+            closed_loop_msg_.image_header.stamp = msg.header.stamp;
+            closed_loop_msg_.image_header.frame_id = "camera_optical_frame";
+            closed_loop_msg_.shoot_header.stamp = this->now();
+            closed_loop_msg_.shoot_header.frame_id = "shoot";
+            closed_loop_msg_.id = id;
+            closed_loop_msg_.armor_num = armor_num;
+            closed_loop_msg_.r = r_1;
+            closed_loop_msg_.another_r = r_2;
+            closed_loop_msg_.dz = dz;
+            closed_loop_msg_.yaw = yaw;
+            closed_loop_msg_.pred_pose.position.x = car_ros_x;
+            closed_loop_msg_.pred_pose.position.y = car_ros_y;
+            closed_loop_msg_.pred_pose.position.z = armor_ros_z;
+            // 闭环数据发布
+            closed_loop_pub_->publish(closed_loop_msg_);
 
             latency_count++;
             all_latency = all_latency + (this->now() - msg.header.stamp).seconds();

@@ -85,6 +85,14 @@ def generate_launch_description():
         output='both',
     )
 
+    closed_loop_node = Node(
+        package='closed_loop',
+        executable='closed_loop_node',
+        name='closed_loop',
+        parameters=[node_params],
+        output='both
+    )
+
     container = ComposableNodeContainer(
         name='image_container',
         namespace='',
@@ -114,10 +122,16 @@ def generate_launch_description():
         actions=[mechax_trajectory_node],
     )
 
+    clsoed_loop_node_delay = TimerAction(
+        period=3.5,
+        actions=[closed_loop_node],
+    )
+
     return LaunchDescription([
         robot_state_publisher,
         container,
         tracker_node_delay,
         serial_driver_node_delay,
         mechax_trajectory_node_delay,
+        clsoed_loop_node_delay,
     ])
