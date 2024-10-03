@@ -19,7 +19,8 @@ void ClosedLoopNode::parameters_init()
     PITCH_ = 15.0 * CV_PI / 180.0;
 
     size_t capacity = 20;
-    //all_armor_images_ = std::make_shared<FixedSizeMapQueue<int64_t, cv::Mat>>(capacity);
+    all_armor_images_ = std::make_shared<FixedSizeMapQueue<int64_t, cv::Mat>>();
+    all_armor_images_->set_capacity(capacity);
 
     // 1  2
     // 4  3
@@ -47,31 +48,38 @@ void ClosedLoopNode::parameters_init()
     tf2_buffer_->setCreateTimerInterface(timer_interface);
     tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
+    // Pub
+    closed_loop_result_image_pub_ = image_transport::create_publisher(this, "closed_loop/result_image");
+
     // Sub
     camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
         "camera_info", rclcpp::SensorDataQoS(), std::bind(&ClosedLoopNode::camera_info_callback, this, std::placeholders::_1));
 
     trajectory_closed_loop_sub_ = this->create_subscription<rm_msgs::msg::ClosedLoop>(
-        "trajectory/closed_loop", 10, std::bind(&ClosedLoopNode::trajectory_closed_loop_callback, this, std::placeholders::_1));
+        "/trajectory/closed_loop", 10, std::bind(&ClosedLoopNode::trajectory_closed_loop_callback, this, std::placeholders::_1));
 
     tracker_image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
-        "/tracker/result_image", 10, std::bind(&ClosedLoopNode::tracker_image_callback, this, std::placeholders::_1));
+        "/image_raw", rclcpp::SensorDataQoS(), std::bind(&ClosedLoopNode::tracker_image_callback, this, std::placeholders::_1));
 
     RCLCPP_INFO(this->get_logger(), "Finished init ClosedLoopNode parameters successfully!");
 }
 
 void ClosedLoopNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::SharedPtr msg)
 {
-    RCLCPP_INFO(this->get_logger(), "Closed_loop_node received camera info!");
     camera_matrix_ = cv::Mat(3, 3, CV_64F, (void *)msg->k.data()).clone();
     distortion_coefficients_ = cv::Mat(1, 5, CV_64F, (void *)msg->d.data()).clone();
 
     std::cout << "camera_matrix: " << camera_matrix_ << std::endl;
     std::cout << "distortion_coefficients: " << distortion_coefficients_ << std::endl;
+
+    camera_info_sub_.reset();
 }
 
 void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedLoop::SharedPtr msg)
 {
+    std::cout << "msg->image_header.stamp: " << msg->image_header.stamp.sec << "s " << msg->image_header.stamp.nanosec << "ns" << std::endl;
+    std::cout << "msg->shoot_header.stamp: " << msg->shoot_header.stamp.sec << "s " << msg->shoot_header.stamp.nanosec << "ns" << std::endl;
+
     double roll = - 75.0 * CV_PI / 180.0;
     double pitch = 0.0; // 假设yaw已经定义
     double yaw = msg->yaw; // 这里的yaw是绕z轴的旋转
@@ -100,7 +108,51 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         return;
     }
 
+    builtin_interfaces::msg::Time draw_image_stamp = msg->image_header.stamp;
+    int64_t draw_image_time = draw_image_stamp.sec * 1000LL + draw_image_stamp.nanosec / 1000000LL;
+    int64_t draw_bias_time;
+    if(draw_image_time > init_time_)
+    {
+        draw_bias_time = draw_image_time - init_time_; //ms
+        bool is_contain = all_armor_images_->contains(draw_bias_time);
+        if(!is_contain)
+        {
+            std::cout << "draw_bias_time: " << draw_bias_time << " is not in all_armor_images_!" << std::endl;
+            return;
+        }
+        cv::Mat draw_image = all_armor_images_->get(draw_bias_time);
+        if(draw_image.empty())
+        {
+            std::cout << "draw_image is empty!" << std::endl;
+            return;
+        }
+        geometry_msgs::msg::PoseStamped now_pose;
+        now_pose.pose = msg->now_pose;
+        now_pose.header = msg->image_header;
+        // 绘制全车装甲板
+        //draw_armor_on_image(draw_image, now_pose, msg->id, msg->armor_num, msg->r, msg->another_r, msg->dz, yaw);
+        // 绘制当前装甲板
+        cv::Point3d now_armor_center = cv::Point3d(msg->now_armor_pose.position.x, msg->now_armor_pose.position.y, msg->now_armor_pose.position.z);
+        std::vector<cv::Point3d> now_armor_3d_points = get_armor_3d_points(now_armor_center, small_armor_world_points_, yaw);
+        std::vector<cv::Point2d> now_armor_image_points = get_armor_image_points(now_armor_3d_points);
+        cv::line(draw_image, now_armor_image_points[0], now_armor_image_points[1], cv::Scalar(0, 255, 0), 2);
+        cv::line(draw_image, now_armor_image_points[1], now_armor_image_points[2], cv::Scalar(0, 255, 0), 2);
+        cv::line(draw_image, now_armor_image_points[2], now_armor_image_points[3], cv::Scalar(0, 255, 0), 2);
+        cv::line(draw_image, now_armor_image_points[3], now_armor_image_points[0], cv::Scalar(0, 255, 0), 2);
+        // 画上当前时刻的时间戳 ms
+        std::string time_str = std::to_string(draw_bias_time) + "ms";
+        cv::putText(draw_image, time_str, cv::Point(500, 10), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
+        // 画上当前时刻的完整时间戳 ms
+        std::string full_time_str = std::to_string(draw_image_time) + "ms";
+        cv::putText(draw_image, full_time_str, cv::Point(500, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
 
+        cv_bridge::CvImage cv_image;
+        cv_image.image = draw_image;
+        cv_image.encoding = "bgr8";
+        cv_image.header = msg->image_header;
+        sensor_msgs::msg::Image draw_image_msg = *(cv_image.toImageMsg());
+        closed_loop_result_image_pub_.publish(draw_image_msg);
+    }
 }
 
 void ClosedLoopNode::tracker_image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
@@ -125,13 +177,18 @@ void ClosedLoopNode::tracker_image_callback(const sensor_msgs::msg::Image::Share
         all_armor_images_->insert(bias_time, cv_ptr->image);
     }
 
+    if(all_armor_images_->get_size() == 0)
+    {
+        return;
+    }
+
     std::cout << "image_stamp: " << image_stamp.sec << "s " << image_stamp.nanosec << "ns" << std::endl;
-    std::cout << "all_armor_images_ size: " << all_armor_images_->size() << std::endl;
+    std::cout << "all_armor_images_ size: " << all_armor_images_->get_size() << std::endl;
     std::cout << "image_time: " << image_time << std::endl;
     std::cout << "init_time_: " << init_time_ << std::endl;
     std::cout << "image_time - init_time_: " << image_time - init_time_ << std::endl;
-    std::cout << "all_armor_images_ begin: " << all_armor_images_->begin().first << std::endl;
-    std::cout << "all_armor_images_ end: " << all_armor_images_->end().first << std::endl;
+    std::cout << "all_armor_images_ begin: " << all_armor_images_->get_begin().first << std::endl;
+    std::cout << "all_armor_images_ end: " << all_armor_images_->get_end().first << std::endl;
 
 }
 

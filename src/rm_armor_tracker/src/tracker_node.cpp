@@ -282,9 +282,13 @@ void ArmorTrackerNode::ResultImageCallback(const sensor_msgs::msg::Image::Shared
             return;
         }
         cv::Mat image = cv_ptr->image;
-        cv::putText(image, tracker_->tracker_armor_->status, cv::Point(10, 200), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
-        cv::putText(image, tracker_->tracker_armor_->armor_name, cv::Point(10, 150), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
-        cv::putText(image, std::to_string(tracker_->tracker_armor_->lost_count), cv::Point(10, 250), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
+        cv::putText(image, tracker_->tracker_armor_->status, cv::Point(10, 200), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
+        cv::putText(image, tracker_->tracker_armor_->armor_name, cv::Point(10, 150), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
+        cv::putText(image, std::to_string(tracker_->tracker_armor_->lost_count), cv::Point(10, 250), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
+        // 绘制时间戳
+        builtin_interfaces::msg::Time image_stamp = msg->header.stamp;
+        int64_t image_time = image_stamp.sec * 1000LL + image_stamp.nanosec / 1000000LL;
+        cv::putText(image, "tracker image_stamp: " + std::to_string(image_time) + "ms", cv::Point(500, 70), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
         cv_bridge::CvImage cv_image;
         cv_image.image = image;
         cv_image.encoding = "bgr8";

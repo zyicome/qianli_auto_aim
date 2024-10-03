@@ -2,6 +2,7 @@
 
 #include <opencv2/opencv.hpp>
 #include "cv_bridge/cv_bridge.h"
+#include "image_transport/image_transport.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -51,6 +52,8 @@ public:
 
     std::vector<cv::Point3d> big_armor_world_points_;
     std::vector<cv::Point3d> small_armor_world_points_;
+
+    image_transport::Publisher closed_loop_result_image_pub_;
 
     rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
     rclcpp::Subscription<rm_msgs::msg::ClosedLoop>::SharedPtr trajectory_closed_loop_sub_;

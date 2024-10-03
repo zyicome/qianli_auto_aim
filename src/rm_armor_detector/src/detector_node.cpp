@@ -176,36 +176,40 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std_msgs::msg::He
             {
                 if(pred_points_.size() == 4)
                 {
-                    cv::putText(debug_image, "1", cv::Point(pred_points_[0].x, pred_points_[0].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
-                    cv::putText(debug_image, "2", cv::Point(pred_points_[1].x, pred_points_[1].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
-                    cv::putText(debug_image, "3", cv::Point(pred_points_[2].x, pred_points_[2].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
-                    cv::putText(debug_image, "4", cv::Point(pred_points_[3].x, pred_points_[3].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                    cv::putText(debug_image, "1", cv::Point(pred_points_[0].x, pred_points_[0].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
+                    cv::putText(debug_image, "2", cv::Point(pred_points_[1].x, pred_points_[1].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
+                    cv::putText(debug_image, "3", cv::Point(pred_points_[2].x, pred_points_[2].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
+                    cv::putText(debug_image, "4", cv::Point(pred_points_[3].x, pred_points_[3].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
                 }
-                cv::putText(debug_image, "1", cv::Point(armors[i].four_points[0].x, armors[i].four_points[0].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
-                cv::putText(debug_image, "2", cv::Point(armors[i].four_points[1].x, armors[i].four_points[1].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
-                cv::putText(debug_image, "3", cv::Point(armors[i].four_points[2].x, armors[i].four_points[2].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
-                cv::putText(debug_image, "4", cv::Point(armors[i].four_points[3].x, armors[i].four_points[3].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                cv::putText(debug_image, "1", cv::Point(armors[i].four_points[0].x, armors[i].four_points[0].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
+                cv::putText(debug_image, "2", cv::Point(armors[i].four_points[1].x, armors[i].four_points[1].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
+                cv::putText(debug_image, "3", cv::Point(armors[i].four_points[2].x, armors[i].four_points[2].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
+                cv::putText(debug_image, "4", cv::Point(armors[i].four_points[3].x, armors[i].four_points[3].y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
                 cv::polylines(debug_image, pts, true, cv::Scalar(0, 0, 255), 2);
                 cv::Point armor_center = cv::Point((armors[i].four_points[0].x + armors[i].four_points[2].x) / 2, (armors[i].four_points[0].y + armors[i].four_points[2].y) / 2);
                 //绘制距离
-                cv::putText(debug_image, std::to_string(decision_armor.distance), armor_center, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                cv::putText(debug_image, std::to_string(decision_armor.distance), armor_center, cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
                 //绘制yaw值
                 double yaw = orientationToYaw(decision_armor.pose.orientation);
-                cv::putText(debug_image, std::to_string(yaw * 57.3f), armor_center + cv::Point(0, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                cv::putText(debug_image, std::to_string(yaw * 57.3f), armor_center + cv::Point(0, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
                 double pred_yaw = decision_armor.yaw;
-                cv::putText(debug_image, std::to_string(pred_yaw * 57.3f), armor_center + cv::Point(0, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 5);
+                cv::putText(debug_image, std::to_string(pred_yaw * 57.3f), armor_center + cv::Point(0, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
             }
             else
             {
                 cv::polylines(debug_image, pts, true, cv::Scalar(0, 255, 0), 2);
             }
-            cv::putText(debug_image, armors[i].name, cv::Point(armors[i].rect.x, armors[i].rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
+            cv::putText(debug_image, armors[i].name, cv::Point(armors[i].rect.x, armors[i].rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
         }
         // 绘制图片大小以及图片中心
-        cv::putText(debug_image, "width: " + std::to_string(debug_image.cols) + " height: " + std::to_string(debug_image.rows), cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
-        cv::circle(debug_image, image_center_, 5, cv::Scalar(0, 255, 0), -1);
+        cv::putText(debug_image, "width: " + std::to_string(debug_image.cols) + " height: " + std::to_string(debug_image.rows), cv::Point(10, 20), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
+        cv::circle(debug_image, image_center_, 3, cv::Scalar(0, 255, 0), -1);
         // 绘制fps
-        cv::putText(debug_image, "detector fps: " + std::to_string(detector_now_fps_), cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
+        cv::putText(debug_image, "detector fps: " + std::to_string(detector_now_fps_), cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
+        // 绘制时间戳
+        builtin_interfaces::msg::Time image_stamp = image_header.stamp;
+        int64_t image_time = image_stamp.sec * 1000LL + image_stamp.nanosec / 1000000LL;
+        cv::putText(debug_image, "detector image_stamp: " + std::to_string(image_time) + "ms", cv::Point(500, 50), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
         sensor_msgs::msg::Image debug_image_msg = *(cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", debug_image).toImageMsg());
         debug_image_msg.header = image_header;
         result_image_pub_.publish(debug_image_msg);
@@ -471,7 +475,7 @@ void ArmorDetectorNode::test()
                 pts[0].emplace_back(cv::Point(p.x, p.y));
             }
             cv::polylines(input, pts, true, cv::Scalar(0, 255, 0), 2);
-            cv::putText(input, detector.armors_[i].name, cv::Point(detector.armors_[i].rect.x, detector.armors_[i].rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 5);
+            cv::putText(input, detector.armors_[i].name, cv::Point(detector.armors_[i].rect.x, detector.armors_[i].rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 3);
         }
         cv::imshow("result", input);
         cv::waitKey(0);

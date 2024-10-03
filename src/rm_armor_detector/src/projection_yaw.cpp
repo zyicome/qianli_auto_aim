@@ -111,8 +111,8 @@ double ProjectionYaw::update_pred_yaw(const DecisionArmor& decision_armor,double
         {
             right_cost = update(decision_armor, mr);
         }
-        std::cout << "left_cost: " << left_cost << " right_cost: " << right_cost << std::endl;
-        std::cout << "ml: " << ml << " mr: " << mr << std::endl;
+        //std::cout << "left_cost: " << left_cost << " right_cost: " << right_cost << std::endl;
+        //std::cout << "ml: " << ml << " mr: " << mr << std::endl;
         if(left_cost < right_cost)
         {
             right_yaw = mr;
@@ -126,8 +126,8 @@ double ProjectionYaw::update_pred_yaw(const DecisionArmor& decision_armor,double
             choice = 0;
         }
     }
-    std::cout << "left_yaw: " << left_yaw << " right_yaw: " << right_yaw << std::endl;
-    std::cout << "result: " << ((left_yaw + right_yaw) / 2.0) * 57.3f << std::endl;
+    //std::cout << "left_yaw: " << left_yaw << " right_yaw: " << right_yaw << std::endl;
+    //std::cout << "result: " << ((left_yaw + right_yaw) / 2.0) * 57.3f << std::endl;
     return (left_yaw + right_yaw) / 2;
 }
 

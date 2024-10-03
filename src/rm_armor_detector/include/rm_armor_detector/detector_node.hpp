@@ -15,6 +15,8 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include "angles/angles.h"
 
+#include "builtin_interfaces/msg/time.hpp"
+
 #include "rm_msgs/msg/armor.hpp"
 #include "rm_msgs/msg/status.hpp"
 

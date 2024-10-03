@@ -17,6 +17,7 @@
 #include <tf2_ros/message_filter.h>
 #include <tf2_ros/transform_listener.h>
 
+#include "builtin_interfaces/msg/time.hpp"
 
 #include "rm_msgs/msg/armor.hpp"
 #include "rm_msgs/msg/target.hpp"
