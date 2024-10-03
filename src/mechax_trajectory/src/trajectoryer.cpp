@@ -553,6 +553,9 @@ void Trajectoryer::targetCallback(const rm_msgs::msg::Target msg)
     closed_loop_msg_.now_pose.position.x = car_ros_x;
     closed_loop_msg_.now_pose.position.y = car_ros_y;
     closed_loop_msg_.now_pose.position.z = armor_ros_z;
+    closed_loop_msg_.now_armor_pose.position.x = armor_ros_x;
+    closed_loop_msg_.now_armor_pose.position.y = armor_ros_y;
+    closed_loop_msg_.now_armor_pose.position.z = armor_ros_z;
 
     if(is_tracking)
     {

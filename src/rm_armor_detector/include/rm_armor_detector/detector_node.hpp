@@ -5,6 +5,7 @@
 #include "image_transport/image_transport.hpp"
 
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/header.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "sensor_msgs/msg/camera_info.hpp"
 #include "ament_index_cpp/get_package_share_directory.hpp"
@@ -84,7 +85,7 @@ public:
     // debug
     void create_debug_publishers();
     void destroy_debug_publishers();
-    void debug_deal(const cv::Mat &image, const std::vector<Armor> &armors, const DecisionArmor &decision_armor);
+    void debug_deal(const cv::Mat &image, const std_msgs::msg::Header& image_header, const std::vector<Armor> &armors, const DecisionArmor &decision_armor);
 
     std::vector<cv::Point2f> pred_points_;
     

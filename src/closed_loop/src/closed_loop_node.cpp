@@ -14,7 +14,12 @@ void ClosedLoopNode::parameters_init()
 {
     RCLCPP_INFO(this->get_logger(), "Begin to init ClosedLoopNode parameters!");
 
+    init_time_ = this->now().nanoseconds() / 1000000;
+
     PITCH_ = 15.0 * CV_PI / 180.0;
+
+    size_t capacity = 20;
+    //all_armor_images_ = std::make_shared<FixedSizeMapQueue<int64_t, cv::Mat>>(capacity);
 
     // 1  2
     // 4  3
@@ -44,10 +49,13 @@ void ClosedLoopNode::parameters_init()
 
     // Sub
     camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
-        "camera_info", 10, std::bind(&ClosedLoopNode::camera_info_callback, this, std::placeholders::_1));
+        "camera_info", rclcpp::SensorDataQoS(), std::bind(&ClosedLoopNode::camera_info_callback, this, std::placeholders::_1));
 
     trajectory_closed_loop_sub_ = this->create_subscription<rm_msgs::msg::ClosedLoop>(
         "trajectory/closed_loop", 10, std::bind(&ClosedLoopNode::trajectory_closed_loop_callback, this, std::placeholders::_1));
+
+    tracker_image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
+        "/tracker/result_image", 10, std::bind(&ClosedLoopNode::tracker_image_callback, this, std::placeholders::_1));
 
     RCLCPP_INFO(this->get_logger(), "Finished init ClosedLoopNode parameters successfully!");
 }
@@ -64,10 +72,18 @@ void ClosedLoopNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::Sh
 
 void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedLoop::SharedPtr msg)
 {
-    double yaw = msg->yaw;
-    tf2::Quaternion tf2_q;
-    tf2_q.setRPY( - 75.0 * CV_PI / 180.0, yaw * CV_PI / 180.0, 0.0 ); // 有问题？对于不同的旋转顺序，结果不同？如何解决？
-    msg->now_pose.orientation = tf2::toMsg(tf2_q);
+    double roll = - 75.0 * CV_PI / 180.0;
+    double pitch = 0.0; // 假设yaw已经定义
+    double yaw = msg->yaw; // 这里的yaw是绕z轴的旋转
+    tf2::Quaternion q_roll, q_pitch, q_yaw;
+    // 设置四元数值
+    q_roll.setRPY(roll, 0.0, 0.0);
+    q_pitch.setRPY(0.0, pitch, 0.0);
+    q_yaw.setRPY(0.0, 0.0, yaw);
+    // 按照特定的顺序组合四元数
+    tf2::Quaternion q_combined = q_yaw * q_pitch * q_roll;
+    msg->now_pose.orientation = tf2::toMsg(q_combined);
+    msg->now_armor_pose.orientation = tf2::toMsg(q_combined);
     try
     {
         geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
@@ -75,12 +91,48 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
             msg->image_header.stamp);
 
         tf2::doTransform(msg->now_pose, msg->now_pose, transformStamped);
+
+        tf2::doTransform(msg->now_armor_pose, msg->now_armor_pose, transformStamped);
     }
     catch (tf2::TransformException &ex)
     {
         RCLCPP_ERROR(this->get_logger(), "Transform error: %s", ex.what());
         return;
     }
+
+
+}
+
+void ClosedLoopNode::tracker_image_callback(const sensor_msgs::msg::Image::SharedPtr msg)
+{
+    cv_bridge::CvImagePtr cv_ptr;
+    try
+    {
+        cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+    }
+    catch (cv_bridge::Exception &e)
+    {
+        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        return;
+    }
+    
+    builtin_interfaces::msg::Time image_stamp = msg->header.stamp;
+    int64_t image_time = image_stamp.sec * 1000LL + image_stamp.nanosec / 1000000LL;
+    int64_t bias_time;
+    if(image_time > init_time_)
+    {
+        bias_time = image_time - init_time_; //ms
+        all_armor_images_->insert(bias_time, cv_ptr->image);
+    }
+
+    std::cout << "image_stamp: " << image_stamp.sec << "s " << image_stamp.nanosec << "ns" << std::endl;
+    std::cout << "all_armor_images_ size: " << all_armor_images_->size() << std::endl;
+    std::cout << "image_time: " << image_time << std::endl;
+    std::cout << "init_time_: " << init_time_ << std::endl;
+    std::cout << "image_time - init_time_: " << image_time - init_time_ << std::endl;
+    std::cout << "all_armor_images_ begin: " << all_armor_images_->begin().first << std::endl;
+    std::cout << "all_armor_images_ end: " << all_armor_images_->end().first << std::endl;
+
 }
 
 void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg::PoseStamped & armor_pose, std::string id, int armor_num, double r, double another_r, double dz, double yaw)
@@ -113,7 +165,7 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
             all_armor_image_points.push_back(armor_image_points);
         }
     }
-    else if(armor_num == 4 && id != "1")
+    else if(armor_num == 4 && id != "robot1-4")
     {
         for(size_t i = 0; i < 4; i++)
         {
@@ -137,7 +189,7 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
             all_armor_image_points.push_back(armor_image_points);
         }
     }
-    else if(armor_num == 4 && id == "1")
+    else if(armor_num == 4 && id == "robot1-4")
     {
         for(size_t i = 0; i < 4; i++)
         {

@@ -159,7 +159,7 @@ void ArmorDetectorNode::destroy_debug_publishers()
     result_image_pub_.shutdown();
 }
 
-void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor> &armors, const DecisionArmor &decision_armor)
+void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std_msgs::msg::Header& image_header, const std::vector<Armor> &armors, const DecisionArmor &decision_armor)
 {
     if(is_debug_ == true)
     {
@@ -207,6 +207,7 @@ void ArmorDetectorNode::debug_deal(const cv::Mat &image, const std::vector<Armor
         // 绘制fps
         cv::putText(debug_image, "detector fps: " + std::to_string(detector_now_fps_), cv::Point(10, 60), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 5);
         sensor_msgs::msg::Image debug_image_msg = *(cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", debug_image).toImageMsg());
+        debug_image_msg.header = image_header;
         result_image_pub_.publish(debug_image_msg);
     }
 }
@@ -366,9 +367,17 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 decision_armor.yaw = yaw;
                 
                 // 采用投影方法计算yaw
-                tf2::Quaternion tf2_q;
-                tf2_q.setRPY(15.0 * CV_PI / 180.0,- CV_PI / 180 * 2 - yaw, 0.0 );
-                armor_msg.pose.orientation = tf2::toMsg(tf2_q);
+                double roll = 15.0 * CV_PI / 180.0;
+                double pitch = - CV_PI / 180 * 2 - yaw; // 假设yaw已经定义
+                double trans_yaw = 0.0; // 这里的yaw是绕z轴的旋转
+                tf2::Quaternion q_roll, q_pitch, q_yaw;
+                // 设置四元数值
+                q_roll.setRPY(roll, 0.0, 0.0);
+                q_pitch.setRPY(0.0, pitch, 0.0);
+                q_yaw.setRPY(0.0, 0.0, trans_yaw);
+                // 按照特定的顺序组合四元数
+                tf2::Quaternion q_combined = q_yaw * q_pitch * q_roll;
+                armor_msg.pose.orientation = tf2::toMsg(q_combined); // 先饶z轴yaw，再绕y轴pitch，最后绕x轴roll
 
                 armor_msg.id = decision_armor.id;
                 armor_msg.color = decision_armor.color;
@@ -421,7 +430,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     {
         if(is_openvino_ == true)
         {
-            debug_deal(image, openvino_detector_->armors_, decision_armor);
+            debug_deal(image, msg->header, openvino_detector_->armors_, decision_armor);
         }
         else if(is_openvino_ == false)
         {
@@ -439,7 +448,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 armor.rect = lights_detector_->armors_[i].rect;
                 armors.push_back(armor);
             }
-            debug_deal(image, armors, decision_armor);
+            debug_deal(image, msg->header, armors, decision_armor);
         }
     }
 }

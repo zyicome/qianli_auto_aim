@@ -90,7 +90,7 @@ def generate_launch_description():
         executable='closed_loop_node',
         name='closed_loop',
         parameters=[node_params],
-        output='both
+        output='both',
     )
 
     container = ComposableNodeContainer(

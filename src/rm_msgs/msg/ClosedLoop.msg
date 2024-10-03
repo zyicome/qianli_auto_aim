@@ -8,3 +8,4 @@ float64 dz
 float64 yaw
 geometry_msgs/Pose now_pose
 geometry_msgs/Pose pred_pose
+geometry_msgs/Pose now_armor_pose

@@ -20,7 +20,7 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
 target_include_directories(${PROJECT_NAME} PUBLIC include/closed_loop)
 
 rclcpp_components_register_node(${PROJECT_NAME}
-  PLUGIN closed_loop::ClosedLoopNode
+  PLUGIN rm_closed_loop::ClosedLoopNode
   EXECUTABLE ${PROJECT_NAME}_node
 )
 

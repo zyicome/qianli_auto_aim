@@ -41,10 +41,15 @@ void Tracker::tracker_init(const rm_msgs::msg::Armor::SharedPtr armor_msg)
     }
     else if(armor_msg->id >= 1 && armor_msg->id <= 5)
     {
-        if(armor_msg->type == "BIG")
+        if(armor_msg->type == "BIG" && armor_msg->id != 1)
         {
             tracker_armor_->armor_num = 2;
             tracker_armor_->armor_name = "robot" + std::to_string(armor_msg->id) + "-2";
+        }
+        else if(armor_msg->type == "BIG" && armor_msg->id == 1)
+        {
+            tracker_armor_->armor_num = 4;
+            tracker_armor_->armor_name = "robot" + std::to_string(armor_msg->id) + "-4";
         }
         else if(armor_msg->type == "SMALL")
         {
