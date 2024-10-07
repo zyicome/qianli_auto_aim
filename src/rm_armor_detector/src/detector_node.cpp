@@ -383,6 +383,8 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 tf2::Quaternion q_combined = q_yaw * q_pitch * q_roll;
                 armor_msg.pose.orientation = tf2::toMsg(q_combined); // 先饶z轴yaw，再绕y轴pitch，最后绕x轴roll
 
+                std::cout << "detector touying Yaw: " << trans_yaw *57.3f<< ", Pitch: " << pitch *57.3f<< ", Roll: " << roll *57.3f<< std::endl;
+
                 armor_msg.id = decision_armor.id;
                 armor_msg.color = decision_armor.color;
                 if(armor_msg.id == 0)

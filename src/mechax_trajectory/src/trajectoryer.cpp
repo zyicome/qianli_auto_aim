@@ -532,18 +532,18 @@ void Trajectoryer::targetCallback(const rm_msgs::msg::Target msg)
     is_tracking = msg.tracking;
     id = msg.id;
     armor_num = msg.armor_num;
-    armor_ros_x = msg.armor_position.x;
-    armor_ros_y = msg.armor_position.y;
+    armor_ros_x = msg.armor_position.position.x;
+    armor_ros_y = msg.armor_position.position.y;
     armor_vx = msg.armor_velocity.x;
     armor_vy = msg.armor_velocity.y;
 
     yaw = msg.yaw;
     v_yaw = msg.v_yaw;
     car_vx = msg.car_velocity.x;
-    car_ros_x = msg.car_position.x;
+    car_ros_x = msg.car_position.position.x;
     car_vy = msg.car_velocity.y;
-    car_ros_y = msg.car_position.y;
-    armor_ros_z = msg.car_position.z;
+    car_ros_y = msg.car_position.position.y;
+    armor_ros_z = msg.car_position.position.z;
     armor_vz = msg.car_velocity.z;
     r_1 = msg.radius_1;
     r_2 = msg.radius_2;
@@ -553,9 +553,17 @@ void Trajectoryer::targetCallback(const rm_msgs::msg::Target msg)
     closed_loop_msg_.now_pose.position.x = car_ros_x;
     closed_loop_msg_.now_pose.position.y = car_ros_y;
     closed_loop_msg_.now_pose.position.z = armor_ros_z;
+    closed_loop_msg_.now_pose.orientation.x = msg.car_position.orientation.x;
+    closed_loop_msg_.now_pose.orientation.y = msg.car_position.orientation.y;
+    closed_loop_msg_.now_pose.orientation.z = msg.car_position.orientation.z;
+    closed_loop_msg_.now_pose.orientation.w = msg.car_position.orientation.w;
     closed_loop_msg_.now_armor_pose.position.x = armor_ros_x;
     closed_loop_msg_.now_armor_pose.position.y = armor_ros_y;
     closed_loop_msg_.now_armor_pose.position.z = armor_ros_z;
+    closed_loop_msg_.now_armor_pose.orientation.x = msg.armor_position.orientation.x;
+    closed_loop_msg_.now_armor_pose.orientation.y = msg.armor_position.orientation.y;
+    closed_loop_msg_.now_armor_pose.orientation.z = msg.armor_position.orientation.z;
+    closed_loop_msg_.now_armor_pose.orientation.w = msg.armor_position.orientation.w;
 
     if(is_tracking)
     {
@@ -623,6 +631,10 @@ void Trajectoryer::targetCallback(const rm_msgs::msg::Target msg)
             closed_loop_msg_.pred_pose.position.x = car_ros_x;
             closed_loop_msg_.pred_pose.position.y = car_ros_y;
             closed_loop_msg_.pred_pose.position.z = armor_ros_z;
+            closed_loop_msg_.pred_pose.orientation.x = msg.car_position.orientation.x;
+            closed_loop_msg_.pred_pose.orientation.y = msg.car_position.orientation.y;
+            closed_loop_msg_.pred_pose.orientation.z = msg.car_position.orientation.z;
+            closed_loop_msg_.pred_pose.orientation.w = msg.car_position.orientation.w;
             // 闭环数据发布
             closed_loop_pub_->publish(closed_loop_msg_);
 
