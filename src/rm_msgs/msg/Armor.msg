@@ -4,4 +4,5 @@ int8 color
 string name
 string type
 float32 distance_to_image_center
+float64 c_to_a_pitch
 geometry_msgs/Pose pose

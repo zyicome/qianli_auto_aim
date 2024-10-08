@@ -628,6 +628,7 @@ void Trajectoryer::targetCallback(const rm_msgs::msg::Target msg)
             closed_loop_msg_.another_r = r_2;
             closed_loop_msg_.dz = dz;
             closed_loop_msg_.yaw = yaw;
+            closed_loop_msg_.c_to_a_pitch = msg.c_to_a_pitch;
             closed_loop_msg_.pred_pose.position.x = car_ros_x;
             closed_loop_msg_.pred_pose.position.y = car_ros_y;
             closed_loop_msg_.pred_pose.position.z = armor_ros_z;

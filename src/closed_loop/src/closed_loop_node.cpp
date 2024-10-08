@@ -69,8 +69,8 @@ void ClosedLoopNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::Sh
     camera_matrix_ = cv::Mat(3, 3, CV_64F, (void *)msg->k.data()).clone();
     distortion_coefficients_ = cv::Mat(1, 5, CV_64F, (void *)msg->d.data()).clone();
 
-    std::cout << "camera_matrix: " << camera_matrix_ << std::endl;
-    std::cout << "distortion_coefficients: " << distortion_coefficients_ << std::endl;
+    std::cout << "ClosedLoopNode camera_matrix: " << camera_matrix_ << std::endl;
+    std::cout << "ClosedLoopNode distortion_coefficients: " << distortion_coefficients_ << std::endl;
 
     camera_info_sub_.reset();
 }
@@ -158,9 +158,10 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
 
         // 输出欧拉角
         std::cout << "Yaw: " << yaw *57.3f<< ", Pitch: " << pitch *57.3f<< ", Roll: " << roll *57.3f<< std::endl;
+        std::cout << "c_to_a_pitch: " << msg->c_to_a_pitch * 57.3f << std::endl;
 
         cv::Point3d now_armor_center = cv::Point3d(msg->now_armor_pose.position.x, msg->now_armor_pose.position.y, msg->now_armor_pose.position.z);
-        std::vector<cv::Point3d> now_armor_3d_points = get_armor_3d_points(now_armor_center, small_armor_world_points_, yaw);
+        std::vector<cv::Point3d> now_armor_3d_points = get_armor_3d_points(now_armor_center, small_armor_world_points_, msg->c_to_a_pitch);
         std::vector<cv::Point2d> now_armor_image_points = get_armor_image_points(now_armor_3d_points);
         cv::line(draw_image, now_armor_image_points[0], now_armor_image_points[1], cv::Scalar(0, 255, 0), 2);
         cv::line(draw_image, now_armor_image_points[1], now_armor_image_points[2], cv::Scalar(0, 255, 0), 2);
@@ -338,7 +339,7 @@ std::vector<cv::Point3d> ClosedLoopNode::get_armor_3d_points(cv::Point3d & armor
                                                 ,  std::cos(PITCH_));
     std::vector<cv::Point3d> armor_points;
     for(size_t i = 0; i < armor_world_points.size(); i++)
-    {
+    {y_trans_point
         cv::Mat xz_trans = armor_world_points[i].x * xz_vec;
         // xzy 转为 xyz
         cv::Point3d xz_trans_point = cv::Point3f(xz_trans.at<double>(0,0),xz_trans.at<double>(2,0),xz_trans.at<double>(1,0));

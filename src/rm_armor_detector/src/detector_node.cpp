@@ -385,6 +385,8 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
 
                 std::cout << "detector touying Yaw: " << trans_yaw *57.3f<< ", Pitch: " << pitch *57.3f<< ", Roll: " << roll *57.3f<< std::endl;
 
+                armor_msg.c_to_a_pitch = pitch;
+
                 armor_msg.id = decision_armor.id;
                 armor_msg.color = decision_armor.color;
                 if(armor_msg.id == 0)
@@ -430,6 +432,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
         armor_msg.name = "none";
         armor_msg.type = "none";
         armor_msg.distance_to_image_center = 0;
+        armor_msg.c_to_a_pitch = 0;
         armor_pub_->publish(armor_msg);
     }
     if(is_debug_ == true)
