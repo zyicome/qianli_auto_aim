@@ -215,6 +215,11 @@ void ArmorTrackerNode::armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_
         target_msg.car_velocity.z = tracker_->target_state_.at<double>(5,0);
         target_msg.yaw = tracker_->target_state_.at<double>(6,0);
         std::cout << "target_msg.yaw: " << target_msg.yaw * 57.3f <<std::endl;
+        std::cout << "target_msg.armor_position.x: " << target_msg.armor_position.position.x << std::endl;
+        std::cout << "target_msg.armor_position.y: " << target_msg.armor_position.position.y << std::endl;
+        std::cout << "target_msg.car_position.x: " << target_msg.car_position.position.x << std::endl;
+        std::cout << "target_msg.car_position.y: " << target_msg.car_position.position.y << std::endl;
+        std::cout << "target_msg.car_position.z: " << target_msg.car_position.position.z << std::endl;
 
         // 采用投影方法计算yaw
         double roll = - 75.0 * CV_PI / 180.0;

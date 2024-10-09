@@ -92,10 +92,16 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
     tf2::Quaternion q_combined = q_yaw * q_pitch * q_roll;
     msg->now_pose.orientation = tf2::toMsg(q_combined);
     msg->now_armor_pose.orientation = tf2::toMsg(q_combined);*/
+    std::cout << "msg->now_armor_pose.position.x: " << msg->now_armor_pose.position.x << std::endl;
+    std::cout << "msg->now_armor_pose.position.y: " << msg->now_armor_pose.position.y << std::endl;
+    std::cout << "msg->now_armor_pose.position.z: " << msg->now_armor_pose.position.z << std::endl;
+    std::cout << "msg->now_pose.position.x: " << msg->now_pose.position.x << std::endl;
+    std::cout << "msg->now_pose.position.y: " << msg->now_pose.position.y << std::endl;
+    std::cout << "msg->now_pose.position.z: " << msg->now_pose.position.z << std::endl;
     try
     {
         geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
-            "odom", "camera_optical_frame", 
+            "camera_optical_frame", "odom", 
             msg->image_header.stamp);
 
         tf2::doTransform(msg->now_pose, msg->now_pose, transformStamped);
@@ -107,6 +113,12 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         RCLCPP_ERROR(this->get_logger(), "Transform error: %s", ex.what());
         return;
     }
+
+    std::cout << "update msg->now_armor_pose.position.x: " << msg->now_armor_pose.position.x << std::endl;
+    std::cout << "update msg->now_armor_pose.position.y: " << msg->now_armor_pose.position.y << std::endl;
+    std::cout << "update msg->now_armor_pose.position.z: " << msg->now_armor_pose.position.z << std::endl;
+    std::cout << "update msg->now_pose.position.x: " << msg->now_pose.position.x << std::endl;
+    std::cout << "update msg->now_pose.position.y: " << msg->now_pose.position.y << std::endl;
 
     builtin_interfaces::msg::Time draw_image_stamp = msg->image_header.stamp;
     int64_t draw_image_time = draw_image_stamp.sec * 1000LL + draw_image_stamp.nanosec / 1000000LL;
@@ -130,7 +142,7 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         now_pose.pose = msg->now_pose;
         now_pose.header = msg->image_header;
         // 绘制全车装甲板
-        //draw_armor_on_image(draw_image, now_pose, msg->id, msg->armor_num, msg->r, msg->another_r, msg->dz, yaw);
+        draw_armor_on_image(draw_image, now_pose, msg->id, msg->armor_num, msg->r, msg->another_r, msg->dz, msg->c_to_a_pitch);
         // 绘制当前装甲板
         
         // 提取四元数的各个分量
@@ -161,12 +173,18 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         std::cout << "c_to_a_pitch: " << msg->c_to_a_pitch * 57.3f << std::endl;
 
         cv::Point3d now_armor_center = cv::Point3d(msg->now_armor_pose.position.x, msg->now_armor_pose.position.y, msg->now_armor_pose.position.z);
-        std::vector<cv::Point3d> now_armor_3d_points = get_armor_3d_points(now_armor_center, small_armor_world_points_, msg->c_to_a_pitch);
+        cv::Point2d now_armor_center_image_point = get_armor_image_points({now_armor_center})[0];
+        std::vector<cv::Point3d> now_armor_3d_points = get_armor_3d_points(now_armor_center, small_armor_world_points_, pitch);
         std::vector<cv::Point2d> now_armor_image_points = get_armor_image_points(now_armor_3d_points);
-        cv::line(draw_image, now_armor_image_points[0], now_armor_image_points[1], cv::Scalar(0, 255, 0), 2);
-        cv::line(draw_image, now_armor_image_points[1], now_armor_image_points[2], cv::Scalar(0, 255, 0), 2);
-        cv::line(draw_image, now_armor_image_points[2], now_armor_image_points[3], cv::Scalar(0, 255, 0), 2);
-        cv::line(draw_image, now_armor_image_points[3], now_armor_image_points[0], cv::Scalar(0, 255, 0), 2);
+        cv::line(draw_image, now_armor_image_points[0], now_armor_image_points[1], cv::Scalar(255, 0, 0), 2);
+        cv::line(draw_image, now_armor_image_points[1], now_armor_image_points[2], cv::Scalar(255, 0, 0), 2);
+        cv::line(draw_image, now_armor_image_points[2], now_armor_image_points[3], cv::Scalar(255, 0, 0), 2);
+        cv::line(draw_image, now_armor_image_points[3], now_armor_image_points[0], cv::Scalar(255, 0, 0), 2);
+        cv::circle(draw_image, now_armor_center_image_point, 10, cv::Scalar(255, 0, 0), -1);
+
+        std::cout << "now_armor_center: " << now_armor_center << std::endl;
+        std::cout << "now_armor_center_image_point: " << now_armor_center_image_point << std::endl;
+
         // 画上当前时刻的时间戳 ms
         std::string time_str = std::to_string(draw_bias_time) + "ms";
         cv::putText(draw_image, time_str, cv::Point(500, 10), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
@@ -231,8 +249,8 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
         for(size_t i = 0; i < 2; i++)
         {
             double x = car_center.x + r * std::cos(i * CV_PI + yaw);
-            double y = car_center.y + r * std::sin(i * CV_PI + yaw);
-            cv::Point3d armor_center = cv::Point3d(x, y, car_center.z); 
+            double z = car_center.z + r * std::sin(i * CV_PI + yaw);
+            cv::Point3d armor_center = cv::Point3d(x, car_center.y, z); 
             armor_3d_points = get_armor_3d_points(armor_center, big_armor_world_points_, yaw);
             armor_image_points = get_armor_image_points(armor_3d_points);
             all_armor_image_points.push_back(armor_image_points);
@@ -243,8 +261,8 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
         for(size_t i = 0; i < 3; i++)
         {
             double x = car_center.x + r * std::cos(i * CV_PI * 2 / 3 + yaw);
-            double y = car_center.y + r * std::sin(i * CV_PI * 2 / 3 + yaw);
-            cv::Point3d armor_center = cv::Point3d(x, y, car_center.z); 
+            double z = car_center.z + r * std::sin(i * CV_PI * 2 / 3 + yaw);
+            cv::Point3d armor_center = cv::Point3d(x, car_center.y, z); 
             armor_3d_points = get_armor_3d_points(armor_center, small_armor_world_points_, yaw);
             armor_image_points = get_armor_image_points(armor_3d_points);
             all_armor_image_points.push_back(armor_image_points);
@@ -255,19 +273,19 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
         for(size_t i = 0; i < 4; i++)
         {
             double x = 0.0;
-            double y = 0.0;
+            double z = 0.0;
             cv::Point3d armor_center;
             if(i == 0 || i == 2)
             {
                 x = car_center.x + r * std::cos(i * CV_PI / 2 + yaw);
-                y = car_center.y + r * std::sin(i * CV_PI / 2 + yaw);
-                armor_center = cv::Point3d(x, y, car_center.z); 
+                z = car_center.z + r * std::sin(i * CV_PI / 2 + yaw);
+                armor_center = cv::Point3d(x, car_center.y, z); 
             }
             else if(i == 1 || i == 3)
             {
                 x = car_center.x + another_r * std::cos(i * CV_PI / 2 + yaw);
-                y = car_center.y + another_r * std::sin(i * CV_PI / 2 + yaw);
-                armor_center = cv::Point3d(x, y, car_center.z + dz); 
+                z = car_center.z + another_r * std::sin(i * CV_PI / 2 + yaw);
+                armor_center = cv::Point3d(x, car_center.y + dz, z); 
             }
             armor_3d_points = get_armor_3d_points(armor_center, small_armor_world_points_, yaw);
             armor_image_points = get_armor_image_points(armor_3d_points);
@@ -279,19 +297,19 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
         for(size_t i = 0; i < 4; i++)
         {
             double x = 0.0;
-            double y = 0.0;
+            double z = 0.0;
             cv::Point3d armor_center;
             if(i == 0 || i == 2)
             {
                 x = car_center.x + r * std::cos(i * CV_PI / 2 + yaw);
-                y = car_center.y + r * std::sin(i * CV_PI / 2 + yaw);
-                armor_center = cv::Point3d(x, y, car_center.z); 
+                z = car_center.z + r * std::sin(i * CV_PI / 2 + yaw);
+                armor_center = cv::Point3d(x, car_center.y + dz, z); 
             }
             else if(i == 1 || i == 3)
             {
                 x = car_center.x + another_r * std::cos(i * CV_PI / 2 + yaw);
-                y = car_center.y + another_r * std::sin(i * CV_PI / 2 + yaw);
-                armor_center = cv::Point3d(x, y, car_center.z + dz); 
+                z = car_center.z + another_r * std::sin(i * CV_PI / 2 + yaw);
+                armor_center = cv::Point3d(x, car_center.y + dz, z); 
             }
             armor_3d_points = get_armor_3d_points(armor_center, big_armor_world_points_, yaw);
             armor_image_points = get_armor_image_points(armor_3d_points);
@@ -339,7 +357,7 @@ std::vector<cv::Point3d> ClosedLoopNode::get_armor_3d_points(cv::Point3d & armor
                                                 ,  std::cos(PITCH_));
     std::vector<cv::Point3d> armor_points;
     for(size_t i = 0; i < armor_world_points.size(); i++)
-    {y_trans_point
+    {
         cv::Mat xz_trans = armor_world_points[i].x * xz_vec;
         // xzy 转为 xyz
         cv::Point3d xz_trans_point = cv::Point3f(xz_trans.at<double>(0,0),xz_trans.at<double>(2,0),xz_trans.at<double>(1,0));
