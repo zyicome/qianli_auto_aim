@@ -142,7 +142,11 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         now_pose.pose = msg->now_pose;
         now_pose.header = msg->image_header;
         // 绘制全车装甲板
-        draw_armor_on_image(draw_image, now_pose, msg->id, msg->armor_num, msg->r, msg->another_r, msg->dz, msg->c_to_a_pitch);
+        // 处理的地方msg->c_to_a_pitch可能要个负值，因为pitch转动方向和用rotate函数的方向相反
+        // 先前在给camera_optical_frame到odom的变换时，pitch的值为-180 / CV_PI- yaw, 那么这里应该把pitch取负值 -- 需测试 2024.10.9
+        // 测试结果：
+        //draw_armor_on_image(draw_image, now_pose, msg->id, msg->armor_num, msg->r, msg->another_r, msg->dz, msg->c_to_a_pitch);
+        draw_armor_on_image(draw_image, now_pose, msg->id, msg->armor_num, msg->r, msg->another_r, msg->dz, - msg->c_to_a_pitch);
         // 绘制当前装甲板
         
         // 提取四元数的各个分量
@@ -174,7 +178,11 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
 
         cv::Point3d now_armor_center = cv::Point3d(msg->now_armor_pose.position.x, msg->now_armor_pose.position.y, msg->now_armor_pose.position.z);
         cv::Point2d now_armor_center_image_point = get_armor_image_points({now_armor_center})[0];
-        std::vector<cv::Point3d> now_armor_3d_points = get_armor_3d_points(now_armor_center, small_armor_world_points_, pitch);
+        // 与上同理
+        // 处理的地方msg->c_to_a_pitch可能要个负值，因为pitch转动方向和用rotate函数的方向相反
+        // 先前在给camera_optical_frame到odom的变换时，pitch的值为-180 / CV_PI- yaw, 那么这里应该把pitch取负值 -- 需测试 2024.10.9
+        // 测试结果：
+        std::vector<cv::Point3d> now_armor_3d_points = get_armor_3d_points(now_armor_center, small_armor_world_points_, - pitch);
         std::vector<cv::Point2d> now_armor_image_points = get_armor_image_points(now_armor_3d_points);
         cv::line(draw_image, now_armor_image_points[0], now_armor_image_points[1], cv::Scalar(255, 0, 0), 2);
         cv::line(draw_image, now_armor_image_points[1], now_armor_image_points[2], cv::Scalar(255, 0, 0), 2);
@@ -275,16 +283,22 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
             double x = 0.0;
             double z = 0.0;
             cv::Point3d armor_center;
+            // 测试是否cos，sin计算方法有误，经过计算，应该为x-r*sin(i * CV_PI / 2 + yaw)，z+r*cos(i * CV_PI / 2 + yaw) ，--需测试 2024.10.9
+            // 测试结果：
             if(i == 0 || i == 2)
             {
-                x = car_center.x + r * std::cos(i * CV_PI / 2 + yaw);
-                z = car_center.z + r * std::sin(i * CV_PI / 2 + yaw);
+                /*x = car_center.x + r * std::cos(i * CV_PI / 2 + yaw);
+                z = car_center.z + r * std::sin(i * CV_PI / 2 + yaw);*/
+                x = car_center.x - r * std::sin(i * CV_PI / 2 + yaw);
+                z = car_center.z + r * std::cos(i * CV_PI / 2 + yaw);
                 armor_center = cv::Point3d(x, car_center.y, z); 
             }
             else if(i == 1 || i == 3)
             {
-                x = car_center.x + another_r * std::cos(i * CV_PI / 2 + yaw);
-                z = car_center.z + another_r * std::sin(i * CV_PI / 2 + yaw);
+                /*x = car_center.x + another_r * std::cos(i * CV_PI / 2 + yaw);
+                z = car_center.z + another_r * std::sin(i * CV_PI / 2 + yaw);*/
+                x = car_center.x - r * std::sin(i * CV_PI / 2 + yaw);
+                z = car_center.z + r * std::cos(i * CV_PI / 2 + yaw);
                 armor_center = cv::Point3d(x, car_center.y + dz, z); 
             }
             armor_3d_points = get_armor_3d_points(armor_center, small_armor_world_points_, yaw);
