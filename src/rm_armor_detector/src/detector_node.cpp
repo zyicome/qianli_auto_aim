@@ -376,7 +376,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 
                 // 采用投影方法计算yaw
                 double roll = 15.0 * CV_PI / 180.0;
-                double pitch = - CV_PI / 180 * 2 - yaw; // 假设yaw已经定义
+                double pitch = - CV_PI  - yaw; // 假设yaw已经定义
                 double trans_yaw = 0.0; // 这里的yaw是绕z轴的旋转
                 tf2::Quaternion q_roll, q_pitch, q_yaw;
                 // 设置四元数值

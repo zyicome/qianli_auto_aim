@@ -144,7 +144,7 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         // 绘制全车装甲板
         // 处理的地方msg->c_to_a_pitch可能要个负值，因为pitch转动方向和用rotate函数的方向相反
         // 先前在给camera_optical_frame到odom的变换时，pitch的值为-180 / CV_PI- yaw, 那么这里应该把pitch取负值 -- 需测试 2024.10.9
-        // 测试结果：
+        // 测试结果：取负值
         //draw_armor_on_image(draw_image, now_pose, msg->id, msg->armor_num, msg->r, msg->another_r, msg->dz, msg->c_to_a_pitch);
         draw_armor_on_image(draw_image, now_pose, msg->id, msg->armor_num, msg->r, msg->another_r, msg->dz, - msg->c_to_a_pitch);
         // 绘制当前装甲板
@@ -180,9 +180,9 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         cv::Point2d now_armor_center_image_point = get_armor_image_points({now_armor_center})[0];
         // 与上同理
         // 处理的地方msg->c_to_a_pitch可能要个负值，因为pitch转动方向和用rotate函数的方向相反
-        // 先前在给camera_optical_frame到odom的变换时，pitch的值为-180 / CV_PI- yaw, 那么这里应该把pitch取负值 -- 需测试 2024.10.9
-        // 测试结果：
-        std::vector<cv::Point3d> now_armor_3d_points = get_armor_3d_points(now_armor_center, small_armor_world_points_, - pitch);
+        // 先前在给camera_optical_frame到odom的变换时，pitch的值为- CV_PI - yaw, 那么这里应该把pitch取负值 -- 需测试 2024.10.9
+        // 测试结果：取负值
+        std::vector<cv::Point3d> now_armor_3d_points = get_armor_3d_points(now_armor_center, small_armor_world_points_, - msg->c_to_a_pitch);
         std::vector<cv::Point2d> now_armor_image_points = get_armor_image_points(now_armor_3d_points);
         cv::line(draw_image, now_armor_image_points[0], now_armor_image_points[1], cv::Scalar(255, 0, 0), 2);
         cv::line(draw_image, now_armor_image_points[1], now_armor_image_points[2], cv::Scalar(255, 0, 0), 2);
@@ -256,10 +256,10 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
     {
         for(size_t i = 0; i < 2; i++)
         {
-            double x = car_center.x + r * std::cos(i * CV_PI + yaw);
-            double z = car_center.z + r * std::sin(i * CV_PI + yaw);
+            double x = car_center.x - r * std::sin(i * CV_PI + yaw);
+            double z = car_center.z + r * std::cos(i * CV_PI + yaw);
             cv::Point3d armor_center = cv::Point3d(x, car_center.y, z); 
-            armor_3d_points = get_armor_3d_points(armor_center, big_armor_world_points_, yaw);
+            armor_3d_points = get_armor_3d_points(armor_center, big_armor_world_points_, i * CV_PI + yaw);
             armor_image_points = get_armor_image_points(armor_3d_points);
             all_armor_image_points.push_back(armor_image_points);
         }
@@ -268,10 +268,10 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
     {
         for(size_t i = 0; i < 3; i++)
         {
-            double x = car_center.x + r * std::cos(i * CV_PI * 2 / 3 + yaw);
-            double z = car_center.z + r * std::sin(i * CV_PI * 2 / 3 + yaw);
+            double x = car_center.x - r * std::sin(i * CV_PI * 2 / 3 + yaw);
+            double z = car_center.z + r * std::cos(i * CV_PI * 2 / 3 + yaw);
             cv::Point3d armor_center = cv::Point3d(x, car_center.y, z); 
-            armor_3d_points = get_armor_3d_points(armor_center, small_armor_world_points_, yaw);
+            armor_3d_points = get_armor_3d_points(armor_center, small_armor_world_points_, i * CV_PI * 2 / 3 + yaw);
             armor_image_points = get_armor_image_points(armor_3d_points);
             all_armor_image_points.push_back(armor_image_points);
         }
@@ -284,7 +284,7 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
             double z = 0.0;
             cv::Point3d armor_center;
             // 测试是否cos，sin计算方法有误，经过计算，应该为x-r*sin(i * CV_PI / 2 + yaw)，z+r*cos(i * CV_PI / 2 + yaw) ，--需测试 2024.10.9
-            // 测试结果：
+            // 测试结果：确定计算方法有误，应该为x-r*sin(i * CV_PI / 2 + yaw)，z+r*cos(i * CV_PI / 2 + yaw)，同理修改了tracker里面追踪器的算法
             if(i == 0 || i == 2)
             {
                 /*x = car_center.x + r * std::cos(i * CV_PI / 2 + yaw);
@@ -297,11 +297,11 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
             {
                 /*x = car_center.x + another_r * std::cos(i * CV_PI / 2 + yaw);
                 z = car_center.z + another_r * std::sin(i * CV_PI / 2 + yaw);*/
-                x = car_center.x - r * std::sin(i * CV_PI / 2 + yaw);
-                z = car_center.z + r * std::cos(i * CV_PI / 2 + yaw);
+                x = car_center.x - another_r * std::sin(i * CV_PI / 2 + yaw);
+                z = car_center.z + another_r * std::cos(i * CV_PI / 2 + yaw);
                 armor_center = cv::Point3d(x, car_center.y + dz, z); 
             }
-            armor_3d_points = get_armor_3d_points(armor_center, small_armor_world_points_, yaw);
+            armor_3d_points = get_armor_3d_points(armor_center, small_armor_world_points_, i * CV_PI / 2 + yaw);
             armor_image_points = get_armor_image_points(armor_3d_points);
             all_armor_image_points.push_back(armor_image_points);
         }
@@ -315,17 +315,17 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
             cv::Point3d armor_center;
             if(i == 0 || i == 2)
             {
-                x = car_center.x + r * std::cos(i * CV_PI / 2 + yaw);
-                z = car_center.z + r * std::sin(i * CV_PI / 2 + yaw);
+                x = car_center.x - r * std::sin(i * CV_PI / 2 + yaw);
+                z = car_center.z + r * std::cos(i * CV_PI / 2 + yaw);
                 armor_center = cv::Point3d(x, car_center.y + dz, z); 
             }
             else if(i == 1 || i == 3)
             {
-                x = car_center.x + another_r * std::cos(i * CV_PI / 2 + yaw);
-                z = car_center.z + another_r * std::sin(i * CV_PI / 2 + yaw);
+                x = car_center.x - another_r * std::sin(i * CV_PI / 2 + yaw);
+                z = car_center.z + another_r * std::cos(i * CV_PI / 2 + yaw);
                 armor_center = cv::Point3d(x, car_center.y + dz, z); 
             }
-            armor_3d_points = get_armor_3d_points(armor_center, big_armor_world_points_, yaw);
+            armor_3d_points = get_armor_3d_points(armor_center, big_armor_world_points_, i * CV_PI / 2 + yaw);
             armor_image_points = get_armor_image_points(armor_3d_points);
             all_armor_image_points.push_back(armor_image_points);
         }
@@ -335,13 +335,14 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
     // 将一个装甲板的四个点连接起来
     for(size_t i = 0; i < all_armor_image_points.size(); i++)
     {
+        cv::Scalar color = cv::Scalar(i * 255 / all_armor_image_points.size(), i * 255 / all_armor_image_points.size(), i * 255 / all_armor_image_points.size());
         for(size_t j = 0; j < all_armor_image_points[i].size(); j++)
         {
-            cv::line(image, all_armor_image_points[i][j], all_armor_image_points[i][(j + 1) % 4], cv::Scalar(0, 255, 0), 2);
+            cv::line(image, all_armor_image_points[i][j], all_armor_image_points[i][(j + 1) % 4], color, 2);
         }
     }
     // 标出车中心
-    cv::circle(image, car_center_image_point, 5, cv::Scalar(0, 0, 255), -1);
+    cv::circle(image, car_center_image_point, 10, cv::Scalar(0, 0, 255), -1);
     // 将车中心与装甲板中心连接起来
     for(size_t i = 0; i < all_armor_image_points.size(); i++)
     {
@@ -353,11 +354,8 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
     // 将前一个装甲板的两个点与后一个装甲板的两个点连接起来
     for(size_t i = 0; i < all_armor_image_points.size() ; i++)
     {
-        for(size_t j = (i + 1) % all_armor_image_points.size() ; j < all_armor_image_points.size(); j++)
-        {
-            cv::line(image, all_armor_image_points[i][1], all_armor_image_points[j][0], cv::Scalar(0, 255, 0), 2);
-            cv::line(image, all_armor_image_points[i][2], all_armor_image_points[j][3], cv::Scalar(0, 255, 0), 2);
-        }
+        cv::line(image, all_armor_image_points[i][1], all_armor_image_points[(i+1) % armor_image_points.size()][0], cv::Scalar(0, 255, 0), 2);
+        cv::line(image, all_armor_image_points[i][2], all_armor_image_points[(i+1) % armor_image_points.size()][3], cv::Scalar(0, 255, 0), 2);
     }
 }
 

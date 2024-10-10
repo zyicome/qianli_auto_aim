@@ -67,8 +67,8 @@ cv::Mat EKF::observation_model(cv::Mat &state)
     cv::Mat Z = cv::Mat::zeros(4, 1, CV_64F);
     double yaw = state.at<double>(6, 0);
     double r = state.at<double>(8, 0);
-    Z.at<double>(0, 0) = state.at<double>(0, 0) - r * cos(yaw);
-    Z.at<double>(1, 0) = state.at<double>(2, 0) - r * sin(yaw);
+    Z.at<double>(0, 0) = state.at<double>(0, 0) - r * sin(yaw);
+    Z.at<double>(1, 0) = state.at<double>(2, 0) + r * cos(yaw);
     Z.at<double>(2, 0) = state.at<double>(4, 0);
     Z.at<double>(3, 0) = state.at<double>(6, 0);
     return Z;
@@ -93,8 +93,8 @@ cv::Mat EKF::jacob_h(const cv::Mat &state)
     double yaw = state.at<double>(6,0);
     double r = state.at<double>(8,0);
     cv::Mat jH;
-    jH = (cv::Mat_<double>(4, 9) << 1,   0,   0,   0,   0,   0,   r * sin(yaw),          0,   -cos(yaw),
-                                    0,   0,   1,   0,   0,   0,   -r * cos(yaw),          0,   -sin(yaw),
+    jH = (cv::Mat_<double>(4, 9) << 1,   0,   0,   0,   0,   0,   -r * cos(yaw),          0,   -sin(yaw),
+                                    0,   0,   1,   0,   0,   0,   -r * sin(yaw),          0,   cos(yaw),
                                     0,   0,   0,   0,   1,   0,   0,          0,   0,
                                     0,   0,   0,   0,   0,   0,   1,          0,   0);
     return jH;  

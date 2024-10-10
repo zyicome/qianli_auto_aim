@@ -91,8 +91,8 @@ void Tracker::EKF_init(const rm_msgs::msg::Armor::SharedPtr &armor_msg)
     
     cv::Mat state = (cv::Mat_<double>(9,1) << 0, 0, 0, 0, 0, 0, 0, 0, 0);
     double r = 0.26;
-    double xc = xa + r * cos(yaw);
-    double yc = ya + r * sin(yaw);
+    double xc = xa + r * sin(yaw);
+    double yc = ya - r * cos(yaw);
     dz_ = 0.0;
     another_r_ = r;
     state.at<double>(0,0) = xc;
@@ -280,9 +280,9 @@ void Tracker::handleArmorJump(const TrackerArmor &armor)
     {
         RCLCPP_WARN(rclcpp::get_logger("armor_tracker_node"), "EKF diverged!");
         double r = target_state_.at<double>(8,0);
-        target_state_.at<double>(0,0) = armor.armor_pose.pose.position.x + r * cos(yaw);
+        target_state_.at<double>(0,0) = armor.armor_pose.pose.position.x + r * sin(yaw);
         target_state_.at<double>(1,0) = 0.0;
-        target_state_.at<double>(2,0) = armor.armor_pose.pose.position.y + r * sin(yaw);
+        target_state_.at<double>(2,0) = armor.armor_pose.pose.position.y - r * cos(yaw);
         target_state_.at<double>(3,0) = 0.0;
         target_state_.at<double>(4,0) = armor.armor_pose.pose.position.z;
         target_state_.at<double>(5,0) = 0.0;
@@ -319,7 +319,7 @@ cv::Point3d Tracker::get_armor_position(const cv::Mat &state)
     double yaw = state.at<double>(6,0);
     double r = state.at<double>(8,0);
 
-    double xa = xc - r * cos(yaw);
-    double ya = yc - r * sin(yaw);
+    double xa = xc - r * sin(yaw);
+    double ya = yc + r * cos(yaw);
     return cv::Point3d(xa, ya, za);
 }
