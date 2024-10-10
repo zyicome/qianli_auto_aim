@@ -77,27 +77,6 @@ void ClosedLoopNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::Sh
 
 void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedLoop::SharedPtr msg)
 {
-    //std::cout << "msg->image_header.stamp: " << msg->image_header.stamp.sec << "s " << msg->image_header.stamp.nanosec << "ns" << std::endl;
-    //std::cout << "msg->shoot_header.stamp: " << msg->shoot_header.stamp.sec << "s " << msg->shoot_header.stamp.nanosec << "ns" << std::endl;
-
-    /*double roll = - 75.0 * CV_PI / 180.0;
-    double pitch = 0.0; // 假设yaw已经定义
-    double yaw = msg->yaw; // 这里的yaw是绕z轴的旋转
-    tf2::Quaternion q_roll, q_pitch, q_yaw;
-    // 设置四元数值
-    q_roll.setRPY(roll, 0.0, 0.0);
-    q_pitch.setRPY(0.0, pitch, 0.0);
-    q_yaw.setRPY(0.0, 0.0, yaw);
-    // 按照特定的顺序组合四元数
-    tf2::Quaternion q_combined = q_yaw * q_pitch * q_roll;
-    msg->now_pose.orientation = tf2::toMsg(q_combined);
-    msg->now_armor_pose.orientation = tf2::toMsg(q_combined);*/
-    std::cout << "msg->now_armor_pose.position.x: " << msg->now_armor_pose.position.x << std::endl;
-    std::cout << "msg->now_armor_pose.position.y: " << msg->now_armor_pose.position.y << std::endl;
-    std::cout << "msg->now_armor_pose.position.z: " << msg->now_armor_pose.position.z << std::endl;
-    std::cout << "msg->now_pose.position.x: " << msg->now_pose.position.x << std::endl;
-    std::cout << "msg->now_pose.position.y: " << msg->now_pose.position.y << std::endl;
-    std::cout << "msg->now_pose.position.z: " << msg->now_pose.position.z << std::endl;
     try
     {
         geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
@@ -113,12 +92,6 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         RCLCPP_ERROR(this->get_logger(), "Transform error: %s", ex.what());
         return;
     }
-
-    std::cout << "update msg->now_armor_pose.position.x: " << msg->now_armor_pose.position.x << std::endl;
-    std::cout << "update msg->now_armor_pose.position.y: " << msg->now_armor_pose.position.y << std::endl;
-    std::cout << "update msg->now_armor_pose.position.z: " << msg->now_armor_pose.position.z << std::endl;
-    std::cout << "update msg->now_pose.position.x: " << msg->now_pose.position.x << std::endl;
-    std::cout << "update msg->now_pose.position.y: " << msg->now_pose.position.y << std::endl;
 
     builtin_interfaces::msg::Time draw_image_stamp = msg->image_header.stamp;
     int64_t draw_image_time = draw_image_stamp.sec * 1000LL + draw_image_stamp.nanosec / 1000000LL;
@@ -150,7 +123,7 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         // 绘制当前装甲板
         
         // 提取四元数的各个分量
-        double w = now_pose.pose.orientation.w;
+        /*double w = now_pose.pose.orientation.w;
         double x = now_pose.pose.orientation.x;
         double y = now_pose.pose.orientation.y;
         double z = now_pose.pose.orientation.z;
@@ -170,11 +143,7 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
 
         double siny_cosp = 2 * (w * z + x * y);
         double cosy_cosp = 1 - 2 * (y * y + z * z);
-        double yaw = std::atan2(siny_cosp, cosy_cosp);
-
-        // 输出欧拉角
-        std::cout << "Yaw: " << yaw *57.3f<< ", Pitch: " << pitch *57.3f<< ", Roll: " << roll *57.3f<< std::endl;
-        std::cout << "c_to_a_pitch: " << msg->c_to_a_pitch * 57.3f << std::endl;
+        double yaw = std::atan2(siny_cosp, cosy_cosp);*/
 
         cv::Point3d now_armor_center = cv::Point3d(msg->now_armor_pose.position.x, msg->now_armor_pose.position.y, msg->now_armor_pose.position.z);
         cv::Point2d now_armor_center_image_point = get_armor_image_points({now_armor_center})[0];
@@ -189,9 +158,6 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         cv::line(draw_image, now_armor_image_points[2], now_armor_image_points[3], cv::Scalar(255, 0, 0), 2);
         cv::line(draw_image, now_armor_image_points[3], now_armor_image_points[0], cv::Scalar(255, 0, 0), 2);
         cv::circle(draw_image, now_armor_center_image_point, 10, cv::Scalar(255, 0, 0), -1);
-
-        std::cout << "now_armor_center: " << now_armor_center << std::endl;
-        std::cout << "now_armor_center_image_point: " << now_armor_center_image_point << std::endl;
 
         // 画上当前时刻的时间戳 ms
         std::string time_str = std::to_string(draw_bias_time) + "ms";
@@ -235,14 +201,6 @@ void ClosedLoopNode::tracker_image_callback(const sensor_msgs::msg::Image::Share
     {
         return;
     }
-
-    /*std::cout << "image_stamp: " << image_stamp.sec << "s " << image_stamp.nanosec << "ns" << std::endl;
-    std::cout << "all_armor_images_ size: " << all_armor_images_->get_size() << std::endl;
-    std::cout << "image_time: " << image_time << std::endl;
-    std::cout << "init_time_: " << init_time_ << std::endl;
-    std::cout << "image_time - init_time_: " << image_time - init_time_ << std::endl;
-    std::cout << "all_armor_images_ begin: " << all_armor_images_->get_begin().first << std::endl;
-    std::cout << "all_armor_images_ end: " << all_armor_images_->get_end().first << std::endl;*/
 
 }
 

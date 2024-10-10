@@ -361,10 +361,6 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 armor_msg.pose.position.y = tvec.at<double>(1);
                 armor_msg.pose.position.z = tvec.at<double>(2);
 
-                std::cout << "armor_msg.pose.position.x: " << armor_msg.pose.position.x << std::endl;
-                std::cout << "armor_msg.pose.position.y: " << armor_msg.pose.position.y << std::endl;
-                std::cout << "armor_msg.pose.position.z: " << armor_msg.pose.position.z << std::endl;
-
                 decision_armor.header = msg->header;
 
                 decision_armor.pose = armor_msg.pose;
@@ -386,8 +382,6 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 // 按照特定的顺序组合四元数
                 tf2::Quaternion q_combined = q_yaw * q_pitch * q_roll;
                 armor_msg.pose.orientation = tf2::toMsg(q_combined); // 先饶z轴yaw，再绕y轴pitch，最后绕x轴roll
-
-                std::cout << "detector touying Yaw: " << trans_yaw *57.3f<< ", Pitch: " << pitch *57.3f<< ", Roll: " << roll *57.3f<< std::endl;
 
                 armor_msg.c_to_a_pitch = pitch;
 

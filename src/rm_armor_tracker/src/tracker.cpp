@@ -307,7 +307,6 @@ double Tracker::orientationToYaw(const geometry_msgs::msg::Quaternion & q)
   // 从而确保偏航角变化在连续范围内。这一步旨在解决角度从 -pi 到 pi 的跳变问题，使角度变化连续。
   yaw = last_yaw_ + angles::shortest_angular_distance(last_yaw_, yaw);
   last_yaw_ = yaw;
-  std::cout << "orientation yaw Yaw: " << yaw *57.3f<< ", Pitch: " << pitch *57.3f<< ", Roll: " << roll *57.3f<< std::endl;
   return yaw;
 }
 
