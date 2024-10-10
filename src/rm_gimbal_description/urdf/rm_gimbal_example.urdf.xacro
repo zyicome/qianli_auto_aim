@@ -11,7 +11,7 @@
 
   <joint name="shoot_joint" type="fixed">
     <origin xyz="0 0 0" rpy="0 0 0" />
-    <parent link="odom" />
+    <parent link="gimbal_link" />
     <child link="shoot" />
   </joint>
 
