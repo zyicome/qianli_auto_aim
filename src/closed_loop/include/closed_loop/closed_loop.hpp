@@ -2,6 +2,16 @@
 
 #include <opencv2/opencv.hpp>
 
+#include <message_filters/subscriber.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/create_timer_ros.h>
+#include <tf2_ros/message_filter.h>
+#include <tf2_ros/transform_listener.h>
+
+#include "geometry_msgs/msg/pose_stamped.hpp"
+
+#include "fixed_size_map_queue.hpp"
+
 // 2024.10.11初步思考：
 // 统一采用odom坐标系进行弹丸坐标的计算 -- 因为odom坐标系是固定的，而其他坐标系随云台而发生变化
 // 将每一帧的图像保存下来，用于后续的闭环检测，主要存储时间戳信息，并定义一个初始时间，用于计算时间差，减少时间长度 // 时间ms单位
@@ -11,13 +21,44 @@
 // 如何闭环？
 // 难点：只能获得弹丸在二维图像的像素坐标，而不能获得弹丸在三维空间的坐标，如何将二维坐标转换为三维坐标？ --》关键：弹丸小！！！
 // 比对弹丸在二维图像中的坐标和模拟弹道此时弹丸位置坐标的接近程度来判断符合哪一条模拟弹道？ --》 如果能准确匹配的话，就可以再通过模拟弹道和实际弹丸的误差来进行闭环检测
+
+// 参数定义
+const double g = 9.81; // 重力加速度, m/s^2
+const double rho = 1.225; // 空气密度, kg/m^3
+const double Cd = 0.47; // 阻力系数
+const double A = M_PI * pow(d_small / 2, 2); // 横截面积, m^2
+
 struct Looper
 {
-    cv::Mat image;
+    cv::Mat image_;
+    double image_time_;
+    double shoot_time_;
+    double v0; // 弹丸发射时的加速度
+    double theta_; // 弹丸发射时的角度
+    geometry_msgs::msg::PoseStamped odom_projectile_pose_;
+    geometry_msgs::msg::PoseStamped odom_armor_pose_;
 };
 
 class ClosedLoop
 {
 public:
     ClosedLoop();
+
+    void parameters_init();
+
+    void update_tf2_buffer(const std::shared_ptr<tf2_ros::Buffer>& tf2_buffer, const std::shared_ptr<tf2_ros::TransformListener>& tf2_listener);
+
+    geometry_msgs::msg::PoseStamped get_projectile_pose(const geometry_msgs::msg::PoseStamped& odom_projectile_pose, const double& time, const double& v0, const double& theta);
+
+    std::shared_ptr<FixedSizeMapQueue<int64_t, Looper>> all_projectiles_messages_; // 时间顺序存储的弹丸信息Looper
+
+    double m = 3.2 / 1000; // 物体质量, kg
+    double dt = 0.001; // 时间步长, s
+
+    //-----------------------------------------------------------------
+    // tf2
+    // Subscriber with tf2 message_filter
+    std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
+    //-----------------------------------------------------------------
 }

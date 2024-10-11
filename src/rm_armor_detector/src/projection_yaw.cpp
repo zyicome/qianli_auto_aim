@@ -151,7 +151,7 @@ std::vector<cv::Point3f> ProjectionYaw::get_armor_points(
         // Use the latest available transform instead of a specific timestamp
         geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
             "horizontal_camera_link", "camera_optical_frame",
-            tf2::TimePointZero); // Use the latest available transform
+            decision_armor.header.stamp); // Use the latest available transform
 
         // 将装甲板坐标变换到horizontal平面
         ros_armor_center.pose.position.x = decision_armor.pose.position.x;
@@ -204,7 +204,7 @@ std::vector<cv::Point2f> ProjectionYaw::get_pred_points(
         try{
             geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
                 "camera_optical_frame", "horizontal_camera_link",
-                tf2::TimePointZero); // Use the latest available transform
+                decision_armor.header.stamp); // Use the latest available transform
 
             transform_point.point.x = armor_points[i].x;
             transform_point.point.y = armor_points[i].y;
