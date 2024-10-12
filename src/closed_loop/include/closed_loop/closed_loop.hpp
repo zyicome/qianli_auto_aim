@@ -26,7 +26,9 @@
 const double g = 9.81; // 重力加速度, m/s^2
 const double rho = 1.225; // 空气密度, kg/m^3
 const double Cd = 0.47; // 阻力系数
-const double A = M_PI * pow(d_small / 2, 2); // 横截面积, m^2
+const double d_small = 42.5 / 1000; // 弹丸直径, m
+const double A = CV_PI * pow(d_small / 2, 2); // 横截面积, m^2
+const double m_small = 3.2 / 1000; // 物体质量, kg
 
 struct Looper
 {
@@ -35,6 +37,8 @@ struct Looper
     double shoot_time_;
     double v0; // 弹丸发射时的加速度
     double theta_; // 弹丸发射时的角度
+    double fly_t_; // 弹丸飞行时间
+    double accumulated_time_; // 累计时间
     geometry_msgs::msg::PoseStamped odom_projectile_pose_;
     geometry_msgs::msg::PoseStamped odom_armor_pose_;
 };
@@ -48,12 +52,15 @@ public:
 
     void update_tf2_buffer(const std::shared_ptr<tf2_ros::Buffer>& tf2_buffer, const std::shared_ptr<tf2_ros::TransformListener>& tf2_listener);
 
-    geometry_msgs::msg::PoseStamped get_projectile_pose(const geometry_msgs::msg::PoseStamped& odom_projectile_pose, const double& time, const double& v0, const double& theta);
+    void add_projectiles_messages(const double& image_time, const cv::Mat& image);
+
+    void update_projectiles_messages(const Looper& looper);
+
+    geometry_msgs::msg::PoseStamped get_projectile_pose(const geometry_msgs::msg::PoseStamped& odom_projectile_pose, const geometry_msgs::msg::PoseStamped& odom_armor_pose, const double& time, const double& v0, const double& theta);
 
     std::shared_ptr<FixedSizeMapQueue<int64_t, Looper>> all_projectiles_messages_; // 时间顺序存储的弹丸信息Looper
 
-    double m = 3.2 / 1000; // 物体质量, kg
-    double dt = 0.001; // 时间步长, s
+    double dt_; // 时间步长, s
 
     //-----------------------------------------------------------------
     // tf2
@@ -61,4 +68,4 @@ public:
     std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf2_listener_;
     //-----------------------------------------------------------------
-}
+};

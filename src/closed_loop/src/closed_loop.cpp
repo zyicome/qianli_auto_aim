@@ -19,7 +19,9 @@ ClosedLoop::ClosedLoop()
 
 void ClosedLoop::parameters_init()
 {
+    dt_ = 0.001; // s
 
+    all_projectiles_messages_ = std::make_shared<FixedSizeMapQueue<int64_t, Looper>>();
 }
 
 ClosedLoop::update_tf2_buffer(const std::shared_ptr<tf2_ros::Buffer>& tf2_buffer, const std::shared_ptr<tf2_ros::TransformListener>& tf2_listener)
@@ -28,10 +30,26 @@ ClosedLoop::update_tf2_buffer(const std::shared_ptr<tf2_ros::Buffer>& tf2_buffer
     tf2_listener_ = tf2_listener;
 }
 
+void ClosedLoop::add_projectiles_messages(const double& image_time, const cv::Mat& image)
+{
+    ClosedLoop closed_loop;
+    closed_loop.image = image;
+    closed_loop.image_time_ = image_time;
+    all_projectiles_messages_->insert(image_time, closed_loop);
+}
+
 void ClosedLoop::update_projectiles_messages(const Looper& looper)
 {
-    int64_t time = looper.time;
-    all_projectiles_messages_->insert(time, looper); // insert自动有满序列删除最早的功能
+    if(all_projectiles_messages_->contains(looper.image_time_) != all_projectiles_messages_->end())
+    {
+        looper.image = all_projectiles_messages_->get(looper.image_time_).image;
+        all_projectiles_messages_->change(looper.image_time_, looper);
+    }
+    else
+    {
+        std::cout << "The image_time_ is already in the all_projectiles_messages_" << std::endl;
+        return;
+    }
 }
 
 geometry_msgs::msg::PoseStamped ClosedLoop::get_projectile_pose(const geometry_msgs::msg::PoseStamped& odom_projectile_pose, const geometry_msgs::msg::PoseStamped& odom_armor_pose, const double& time, const double& v0, const double& theta)
@@ -48,8 +66,8 @@ geometry_msgs::msg::PoseStamped ClosedLoop::get_projectile_pose(const geometry_m
     {
         v = std::sqrt(vx * vx + vy * vy);
         Fd = 0.5 * Cd * rho * A * v * v;
-        ax = - Fd * vx / v / m;
-        ay = - Fd * vy / v / m - g;
+        ax = - Fd * vx / v / m_small;
+        ay = - Fd * vy / v / m_small - g;
 
         vx += ax * dt;
         vy += ay * dt;

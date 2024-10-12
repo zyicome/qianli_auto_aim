@@ -22,6 +22,9 @@ void ClosedLoopNode::parameters_init()
     all_armor_images_ = std::make_shared<FixedSizeMapQueue<int64_t, cv::Mat>>();
     all_armor_images_->set_capacity(capacity);
 
+    closed_loop_ = std::make_shared<ClosedLoop>();
+    closed_loop_->all_projectiles_messages_->set_capacity(capacity);
+
     // 1  2
     // 4  3
     big_armor_world_points_ = {
@@ -60,6 +63,8 @@ void ClosedLoopNode::parameters_init()
 
     tracker_image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/image_raw", rclcpp::SensorDataQoS(), std::bind(&ClosedLoopNode::tracker_image_callback, this, std::placeholders::_1));
+
+    simulated_projectile_trajectory_timer_ = this->create_wall_timer(std::chrono::milliseconds(2), std::bind(&ClosedLoopNode::simulated_projectile_trajectory, this));
 
     RCLCPP_INFO(this->get_logger(), "Finished init ClosedLoopNode parameters successfully!");
 }
@@ -111,10 +116,51 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
             std::cout << "draw_image is empty!" << std::endl;
             return;
         }
+
+        //------------------------------------------------------------------------------------------------
+        // 模拟弹道轨迹
+        Looper looper;
+        looper.image_time_ = draw_image_time;
+        builtin_interfaces::msg::Time shoot_image_stamp = msg->shoot_header.stamp;
+        int64_t shoot_image_time = shoot_image_stamp.sec * 1000LL + shoot_image_stamp.nanosec / 1000000LL;
+        looper.shoot_time_ = shoot_image_time - init_time_;
+        looper.v0 = msg->v0;
+        looper.theta_ = msg->theta;
+        looper.fly_t_ = msg->fly_t;
+        // 得到发射点坐标--odom坐标系下
+        geometry_msgs::msg::PoseStamped odom_projectile_pose; //-- shoot坐标系下
+        odom_projectile_pose.pose.position.x = 0;
+        odom_projectile_pose.pose.position.y = 0;
+        odom_projectile_pose.pose.position.z = 0;
+        odom_projectile_pose.pose.orientation.x = 0;
+        odom_projectile_pose.pose.orientation.y = 0;
+        odom_projectile_pose.pose.orientation.z = 0;
+        odom_projectile_pose.pose.orientation.w = 1;
+        try
+        {
+            geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
+                "odom", "shoot", 
+                msg->shoot_header.stamp);
+
+            tf2::doTransform(odom_projectile_pose, odom_projectile_pose, transformStamped);
+        }
+        catch (tf2::TransformException &ex)
+        {
+            RCLCPP_ERROR(this->get_logger(), "Transform error: %s", ex.what());
+            return;
+        }
+        looper.odom_projectile_pose_ = odom_projectile_pose;
+        // 得到目标点坐标--odom坐标系下
+        looper.odom_armor_pose_.pose = msg->now_armor_pose;
+        looper.odom_armor_pose_.header = msg->image_header;
+        closed_loop_->update_projectiles_messages(looper);
+        //------------------------------------------------------------------------------------------------
+
+        //------------------------------------------------------------------------------------------------
+        // 绘制全车装甲板
         geometry_msgs::msg::PoseStamped now_pose;
         now_pose.pose = msg->now_pose;
         now_pose.header = msg->image_header;
-        // 绘制全车装甲板
         // 处理的地方msg->c_to_a_pitch可能要个负值，因为pitch转动方向和用rotate函数的方向相反
         // 先前在给camera_optical_frame到odom的变换时，pitch的值为-180 / CV_PI- yaw, 那么这里应该把pitch取负值 -- 需测试 2024.10.9
         // 测试结果：取负值
@@ -146,13 +192,13 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         double yaw = std::atan2(siny_cosp, cosy_cosp);*/
 
         cv::Point3d now_armor_center = cv::Point3d(msg->now_armor_pose.position.x, msg->now_armor_pose.position.y, msg->now_armor_pose.position.z);
-        cv::Point2d now_armor_center_image_point = get_armor_image_points({now_armor_center})[0];
+        cv::Point2d now_armor_center_image_point = get_image_points({now_armor_center})[0];
         // 与上同理
         // 处理的地方msg->c_to_a_pitch可能要个负值，因为pitch转动方向和用rotate函数的方向相反
         // 先前在给camera_optical_frame到odom的变换时，pitch的值为- CV_PI - yaw, 那么这里应该把pitch取负值 -- 需测试 2024.10.9
         // 测试结果：取负值
         std::vector<cv::Point3d> now_armor_3d_points = get_armor_3d_points(now_armor_center, small_armor_world_points_, - msg->c_to_a_pitch);
-        std::vector<cv::Point2d> now_armor_image_points = get_armor_image_points(now_armor_3d_points);
+        std::vector<cv::Point2d> now_armor_image_points = get_image_points(now_armor_3d_points);
         cv::line(draw_image, now_armor_image_points[0], now_armor_image_points[1], cv::Scalar(255, 0, 0), 2);
         cv::line(draw_image, now_armor_image_points[1], now_armor_image_points[2], cv::Scalar(255, 0, 0), 2);
         cv::line(draw_image, now_armor_image_points[2], now_armor_image_points[3], cv::Scalar(255, 0, 0), 2);
@@ -165,13 +211,15 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         // 画上当前时刻的完整时间戳 ms
         std::string full_time_str = std::to_string(draw_image_time) + "ms";
         cv::putText(draw_image, full_time_str, cv::Point(500, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
+        all_armor_images_->change(draw_bias_time, draw_image);
 
-        cv_bridge::CvImage cv_image;
+        /*cv_bridge::CvImage cv_image;
         cv_image.image = draw_image;
         cv_image.encoding = "bgr8";
         cv_image.header = msg->image_header;
         sensor_msgs::msg::Image draw_image_msg = *(cv_image.toImageMsg());
-        closed_loop_result_image_pub_.publish(draw_image_msg);
+        closed_loop_result_image_pub_.publish(draw_image_msg);*/
+        //------------------------------------------------------------------------------------------------
     }
 }
 
@@ -195,13 +243,56 @@ void ClosedLoopNode::tracker_image_callback(const sensor_msgs::msg::Image::Share
     {
         bias_time = image_time - init_time_; //ms
         all_armor_images_->insert(bias_time, cv_ptr->image);
+        closed_loop_->add_projectiles_messages(image_time, cv_ptr->image);
     }
 
     if(all_armor_images_->get_size() == 0)
     {
         return;
     }
+}
 
+void ClosedLoopNode::simulated_projectile_trajectory()
+{
+    if(closed_loop_->all_projectiles_messages_->get_size() == 0)
+    {
+        return;
+    }
+    if(closed_loop_->all_projectiles_messages_->get_begin().second.fly_t_ <= 0)
+    {
+        closed_loop_->all_projectiles_messages_->pop();
+        return;
+    }
+
+    Looper looper = closed_loop_->all_projectiles_messages_->get_begin().second;
+    looper.accumulated_time_ += closed_loop_->dt_;
+    looper.fly_t_ -= closed_loop_->dt_;
+    geometry_msgs::msg::PoseStamped projectile_pose; // -- odom坐标系下
+    projectile_pose = closed_loop_->get_projectile_pose(looper.odom_projectile_pose_, looper.odom_armor_pose_, looper.accumulated_time_, looper.v0, looper.theta_);
+    try
+    {
+        geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
+            "camera_optical_frame", "odom",
+            this->now());
+
+        tf2::doTransform(projectile_pose, projectile_pose, transformStamped);
+    }
+    catch (tf2::TransformException &ex)
+    {
+        RCLCPP_ERROR(this->get_logger(), "Transform error: %s", ex.what());
+        return;
+    }
+    closed_loop_->all_projectiles_messages_->change(looper.image_time_, looper);
+    cv::Point3d cv_projectile_pose = cv::Point3d(projectile_pose.pose.position.x, projectile_pose.pose.position.y, projectile_pose.pose.position.z);
+    std::vector<cv::Point2d> cv_projectile_image_points = get_image_points({cv_projectile_pose});
+    cv::Mat draw_image = all_armor_images_->get(looper.image_time_);
+    cv::circle(draw_image, cv_projectile_image_points[0], 10, cv::Scalar(0, 0, 255), -1);
+    cv_bridge::CvImage cv_image;
+    cv_image.image = draw_image;
+    cv_image.encoding = "bgr8";
+    cv_image.header.stamp = this->now();
+    sensor_msgs::msg::Image draw_image_msg = *(cv_image.toImageMsg());
+    closed_loop_result_image_pub_.publish(draw_image_msg);
 }
 
 void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg::PoseStamped & armor_pose, std::string id, int armor_num, double r, double another_r, double dz, double yaw)
@@ -218,7 +309,7 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
             double z = car_center.z + r * std::cos(i * CV_PI + yaw);
             cv::Point3d armor_center = cv::Point3d(x, car_center.y, z); 
             armor_3d_points = get_armor_3d_points(armor_center, big_armor_world_points_, i * CV_PI + yaw);
-            armor_image_points = get_armor_image_points(armor_3d_points);
+            armor_image_points = get_image_points(armor_3d_points);
             all_armor_image_points.push_back(armor_image_points);
         }
     }
@@ -230,7 +321,7 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
             double z = car_center.z + r * std::cos(i * CV_PI * 2 / 3 + yaw);
             cv::Point3d armor_center = cv::Point3d(x, car_center.y, z); 
             armor_3d_points = get_armor_3d_points(armor_center, small_armor_world_points_, i * CV_PI * 2 / 3 + yaw);
-            armor_image_points = get_armor_image_points(armor_3d_points);
+            armor_image_points = get_image_points(armor_3d_points);
             all_armor_image_points.push_back(armor_image_points);
         }
     }
@@ -260,7 +351,7 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
                 armor_center = cv::Point3d(x, car_center.y + dz, z); 
             }
             armor_3d_points = get_armor_3d_points(armor_center, small_armor_world_points_, i * CV_PI / 2 + yaw);
-            armor_image_points = get_armor_image_points(armor_3d_points);
+            armor_image_points = get_image_points(armor_3d_points);
             all_armor_image_points.push_back(armor_image_points);
         }
     }
@@ -284,11 +375,11 @@ void ClosedLoopNode::draw_armor_on_image(cv::Mat image, const geometry_msgs::msg
                 armor_center = cv::Point3d(x, car_center.y + dz, z); 
             }
             armor_3d_points = get_armor_3d_points(armor_center, big_armor_world_points_, i * CV_PI / 2 + yaw);
-            armor_image_points = get_armor_image_points(armor_3d_points);
+            armor_image_points = get_image_points(armor_3d_points);
             all_armor_image_points.push_back(armor_image_points);
         }
     }
-    cv::Point2d car_center_image_point = get_armor_image_points({car_center})[0];
+    cv::Point2d car_center_image_point = get_image_points({car_center})[0];
 
     // 将一个装甲板的四个点连接起来
     for(size_t i = 0; i < all_armor_image_points.size(); i++)
@@ -339,7 +430,7 @@ std::vector<cv::Point3d> ClosedLoopNode::get_armor_3d_points(cv::Point3d & armor
     return armor_points;
 }
 
-std::vector<cv::Point2d> ClosedLoopNode::get_armor_image_points(const std::vector<cv::Point3d> & armor_3d_points)
+std::vector<cv::Point2d> ClosedLoopNode::get_image_points(const std::vector<cv::Point3d> & armor_3d_points)
 {
     std::vector<cv::Point2d> armor_image_points;
     cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64F);

@@ -10,3 +10,6 @@ float64 c_to_a_pitch
 geometry_msgs/Pose now_pose
 geometry_msgs/Pose pred_pose
 geometry_msgs/Pose now_armor_pose
+float64 v0
+float64 theta
+float64 fly_t

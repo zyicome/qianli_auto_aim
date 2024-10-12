@@ -12,7 +12,9 @@ public:
     FixedSizeMapQueue();
     void set_capacity(std::size_t capacity);
     void insert(const K& key, const V& value);
+    void pop();
     V get(const K& key);
+    void change(const K& key, const V& value);
     bool contains(const K& key);
     std::size_t get_size();
     std::pair<K, V> get_begin();
@@ -55,6 +57,18 @@ void FixedSizeMapQueue<K, V>::insert(const K& key, const V& value)
 }
 
 template<class K, class V>
+void FixedSizeMapQueue<K, V>::pop()
+{
+    if(order_.empty())
+    {
+        return;
+    }
+    K key_to_remove = order_.front();
+    order_.pop();
+    map_.erase(key_to_remove);
+}
+
+template<class K, class V>
 V FixedSizeMapQueue<K, V>::get(const K& key)
 {
     auto it = map_.find(key);
@@ -62,6 +76,20 @@ V FixedSizeMapQueue<K, V>::get(const K& key)
         return it->second;
     } else {
         throw std::out_of_range("Key not found");
+    }
+}
+
+template<class K, class V>
+void FixedSizeMapQueue<K, V>::change(const K& key, const V& value)
+{
+    if(map_.find(key) != map_.end())
+    {
+        map_[key] = value;
+    }
+    else
+    {
+        std::cout << "The key is not in the map_" << std::endl;
+        return;
     }
 }
 

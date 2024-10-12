@@ -636,6 +636,9 @@ void Trajectoryer::targetCallback(const rm_msgs::msg::Target msg)
             closed_loop_msg_.pred_pose.orientation.y = msg.car_position.orientation.y;
             closed_loop_msg_.pred_pose.orientation.z = msg.car_position.orientation.z;
             closed_loop_msg_.pred_pose.orientation.w = msg.car_position.orientation.w;
+            closed_loop_msg_.v0 = v0;
+            closed_loop_msg_.theta = angle_pitch;
+            closed_loop_msg_.fly_t = fly_t;
             // 闭环数据发布
             closed_loop_pub_->publish(closed_loop_msg_);
 
