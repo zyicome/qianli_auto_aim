@@ -181,6 +181,8 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
             cv::Point3d cv_projectile_point = cv::Point3d(projectile_pose.pose.position.x, projectile_pose.pose.position.y, projectile_pose.pose.position.z);
             std::vector<cv::Point2d> projectile_image_points = get_image_points({cv_projectile_point});
             std::cout << "projectile_image_points: " << projectile_image_points[0] << std::endl;
+            std::cout << "looper.accumulated_time_: " << looper.accumulated_time_ << std::endl;
+            std::cout << "looper.fly_t_: " << looper.fly_t_ << std::endl;
             looper.projectile_image_points_[looper.shoot_time_ + looper.accumulated_time_] = projectile_image_points[0];
             looper.accumulated_time_ += add_time;
         }

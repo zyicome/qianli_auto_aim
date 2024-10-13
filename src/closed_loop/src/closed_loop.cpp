@@ -19,7 +19,7 @@ ClosedLoop::ClosedLoop()
 
 void ClosedLoop::parameters_init()
 {
-    dt_ = 0.001; // s
+    dt_ = 0.0001; // s
 
     all_projectiles_messages_ = std::make_shared<FixedSizeMapQueue<int64_t, Looper>>();
 }
@@ -63,8 +63,8 @@ geometry_msgs::msg::PoseStamped ClosedLoop::get_projectile_pose(const geometry_m
     double vy = v0 * std::sin(theta);
     double d_time = time;
     double Fd;
-    double x;
-    double y;
+    double x = 0;
+    double y = 0;
     double v;
     double ax;
     double ay;
@@ -80,10 +80,11 @@ geometry_msgs::msg::PoseStamped ClosedLoop::get_projectile_pose(const geometry_m
         x += vx * dt_;
         y += vy * dt_;
         d_time -= dt_;
+        std::cout << "vx: " << vx << " vy: " << vy << " x: " << x << " y: " << y << std::endl;
     }
 
     cv::Mat xy_vec = (cv::Mat_<double>(2, 1) << (odom_armor_pose.pose.position.x - odom_projectile_pose.pose.position.x),(odom_armor_pose.pose.position.y - odom_projectile_pose.pose.position.y));
-    xy_vec = cv::norm(xy_vec);
+    cv::normalize(xy_vec, xy_vec);
     geometry_msgs::msg::PoseStamped result;
     result.pose.position.x = odom_armor_pose.pose.position.x + x * xy_vec.at<double>(0, 0);
     result.pose.position.y = odom_armor_pose.pose.position.y + x * xy_vec.at<double>(1, 0);
