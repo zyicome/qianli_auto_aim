@@ -24,7 +24,7 @@ void ClosedLoop::parameters_init()
     all_projectiles_messages_ = std::make_shared<FixedSizeMapQueue<int64_t, Looper>>();
 }
 
-ClosedLoop::update_tf2_buffer(const std::shared_ptr<tf2_ros::Buffer>& tf2_buffer, const std::shared_ptr<tf2_ros::TransformListener>& tf2_listener)
+void ClosedLoop::update_tf2_buffer(const std::shared_ptr<tf2_ros::Buffer>& tf2_buffer, const std::shared_ptr<tf2_ros::TransformListener>& tf2_listener)
 {
     tf2_buffer_ = tf2_buffer;
     tf2_listener_ = tf2_listener;
@@ -32,22 +32,27 @@ ClosedLoop::update_tf2_buffer(const std::shared_ptr<tf2_ros::Buffer>& tf2_buffer
 
 void ClosedLoop::add_projectiles_messages(const double& image_time, const cv::Mat& image)
 {
-    ClosedLoop closed_loop;
-    closed_loop.image = image;
-    closed_loop.image_time_ = image_time;
-    all_projectiles_messages_->insert(image_time, closed_loop);
+    Looper looper;
+    looper.image_ = image;
+    looper.image_time_ = image_time;
+    looper.shoot_time_ = 0;
+    looper.v0 = 0;
+    looper.theta_ = 0;
+    looper.fly_t_ = 0;
+    looper.accumulated_time_ = 0;
+    all_projectiles_messages_->insert(image_time, looper);
 }
 
-void ClosedLoop::update_projectiles_messages(const Looper& looper)
+void ClosedLoop::update_projectiles_messages(Looper& looper)
 {
-    if(all_projectiles_messages_->contains(looper.image_time_) != all_projectiles_messages_->end())
+    if(all_projectiles_messages_->contains(looper.image_time_) == true)
     {
-        looper.image = all_projectiles_messages_->get(looper.image_time_).image;
+        looper.image_ = all_projectiles_messages_->get(looper.image_time_).image_;
         all_projectiles_messages_->change(looper.image_time_, looper);
     }
     else
     {
-        std::cout << "The image_time_ is already in the all_projectiles_messages_" << std::endl;
+        std::cout << "The image_time_ is not in the all_projectiles_messages_" << std::endl;
         return;
     }
 }
@@ -57,6 +62,7 @@ geometry_msgs::msg::PoseStamped ClosedLoop::get_projectile_pose(const geometry_m
     double vx = v0 * std::cos(theta);
     double vy = v0 * std::sin(theta);
     double d_time = time;
+    double Fd;
     double x;
     double y;
     double v;
@@ -69,15 +75,15 @@ geometry_msgs::msg::PoseStamped ClosedLoop::get_projectile_pose(const geometry_m
         ax = - Fd * vx / v / m_small;
         ay = - Fd * vy / v / m_small - g;
 
-        vx += ax * dt;
-        vy += ay * dt;
-        x += vx * dt;
-        y += vy * dt;
-        d_time -= dt;
+        vx += ax * dt_;
+        vy += ay * dt_;
+        x += vx * dt_;
+        y += vy * dt_;
+        d_time -= dt_;
     }
 
     cv::Mat xy_vec = (cv::Mat_<double>(2, 1) << (odom_armor_pose.pose.position.x - odom_projectile_pose.pose.position.x),(odom_armor_pose.pose.position.y - odom_projectile_pose.pose.position.y));
-    xy_vec = cv::normalize(xy_vec);
+    xy_vec = cv::norm(xy_vec);
     geometry_msgs::msg::PoseStamped result;
     result.pose.position.x = odom_armor_pose.pose.position.x + x * xy_vec.at<double>(0, 0);
     result.pose.position.y = odom_armor_pose.pose.position.y + x * xy_vec.at<double>(1, 0);

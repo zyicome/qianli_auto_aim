@@ -41,6 +41,7 @@ struct Looper
     double accumulated_time_; // 累计时间
     geometry_msgs::msg::PoseStamped odom_projectile_pose_;
     geometry_msgs::msg::PoseStamped odom_armor_pose_;
+    std::map<double, cv::Point2d> projectile_image_points_;
 };
 
 class ClosedLoop
@@ -54,7 +55,7 @@ public:
 
     void add_projectiles_messages(const double& image_time, const cv::Mat& image);
 
-    void update_projectiles_messages(const Looper& looper);
+    void update_projectiles_messages(Looper& looper);
 
     geometry_msgs::msg::PoseStamped get_projectile_pose(const geometry_msgs::msg::PoseStamped& odom_projectile_pose, const geometry_msgs::msg::PoseStamped& odom_armor_pose, const double& time, const double& v0, const double& theta);
 

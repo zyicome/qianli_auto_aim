@@ -64,7 +64,7 @@ void ClosedLoopNode::parameters_init()
     tracker_image_sub_ = this->create_subscription<sensor_msgs::msg::Image>(
         "/image_raw", rclcpp::SensorDataQoS(), std::bind(&ClosedLoopNode::tracker_image_callback, this, std::placeholders::_1));
 
-    simulated_projectile_trajectory_timer_ = this->create_wall_timer(std::chrono::milliseconds(2), std::bind(&ClosedLoopNode::simulated_projectile_trajectory, this));
+    //simulated_projectile_trajectory_timer_ = this->create_wall_timer(std::chrono::milliseconds(2), std::bind(&ClosedLoopNode::simulated_projectile_trajectory, this));
 
     RCLCPP_INFO(this->get_logger(), "Finished init ClosedLoopNode parameters successfully!");
 }
@@ -82,6 +82,8 @@ void ClosedLoopNode::camera_info_callback(const sensor_msgs::msg::CameraInfo::Sh
 
 void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedLoop::SharedPtr msg)
 {
+    geometry_msgs::msg::PoseStamped now_odom_armor_pose;
+    now_odom_armor_pose.pose = msg->now_armor_pose;
     try
     {
         geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
@@ -120,13 +122,14 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         //------------------------------------------------------------------------------------------------
         // 模拟弹道轨迹
         Looper looper;
-        looper.image_time_ = draw_image_time;
+        looper.image_time_ = draw_bias_time;
         builtin_interfaces::msg::Time shoot_image_stamp = msg->shoot_header.stamp;
         int64_t shoot_image_time = shoot_image_stamp.sec * 1000LL + shoot_image_stamp.nanosec / 1000000LL;
         looper.shoot_time_ = shoot_image_time - init_time_;
         looper.v0 = msg->v0;
         looper.theta_ = msg->theta;
         looper.fly_t_ = msg->fly_t;
+        looper.accumulated_time_ = 0;
         // 得到发射点坐标--odom坐标系下
         geometry_msgs::msg::PoseStamped odom_projectile_pose; //-- shoot坐标系下
         odom_projectile_pose.pose.position.x = 0;
@@ -140,7 +143,7 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         {
             geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
                 "odom", "shoot", 
-                msg->shoot_header.stamp);
+                tf2::TimePointZero);
 
             tf2::doTransform(odom_projectile_pose, odom_projectile_pose, transformStamped);
         }
@@ -151,8 +154,36 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         }
         looper.odom_projectile_pose_ = odom_projectile_pose;
         // 得到目标点坐标--odom坐标系下
-        looper.odom_armor_pose_.pose = msg->now_armor_pose;
+        looper.odom_armor_pose_.pose = now_odom_armor_pose.pose;
         looper.odom_armor_pose_.header = msg->image_header;
+        // 得到弹丸在图像时间戳下的像素坐标
+        double add_time = 0.002;
+        while(looper.accumulated_time_ < looper.fly_t_)
+        {
+            std::cout << "looper.odom_projectile_pose_: " << looper.odom_projectile_pose_.pose.position.x << " " << looper.odom_projectile_pose_.pose.position.y << " " << looper.odom_projectile_pose_.pose.position.z << std::endl;
+            std::cout << "looper.odom_armor_pose_: " << looper.odom_armor_pose_.pose.position.x << " " << looper.odom_armor_pose_.pose.position.y << " " << looper.odom_armor_pose_.pose.position.z << std::endl;
+            geometry_msgs::msg::PoseStamped projectile_pose = closed_loop_->get_projectile_pose(looper.odom_projectile_pose_, looper.odom_armor_pose_, looper.accumulated_time_, looper.v0, looper.theta_);
+            std::cout << "projectile_pose: " << projectile_pose.pose.position.x << " " << projectile_pose.pose.position.y << " " << projectile_pose.pose.position.z << std::endl;
+            try
+            {
+                geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
+                    "camera_optical_frame", "odom", 
+                    tf2::TimePointZero);
+
+                tf2::doTransform(projectile_pose, projectile_pose, transformStamped);
+            }
+            catch (tf2::TransformException &ex)
+            {
+                RCLCPP_ERROR(this->get_logger(), "Transform error: %s", ex.what());
+                return;
+            }
+            std::cout << "camera _- projectile_pose: " << projectile_pose.pose.position.x << " " << projectile_pose.pose.position.y << " " << projectile_pose.pose.position.z << std::endl;
+            cv::Point3d cv_projectile_point = cv::Point3d(projectile_pose.pose.position.x, projectile_pose.pose.position.y, projectile_pose.pose.position.z);
+            std::vector<cv::Point2d> projectile_image_points = get_image_points({cv_projectile_point});
+            std::cout << "projectile_image_points: " << projectile_image_points[0] << std::endl;
+            looper.projectile_image_points_[looper.shoot_time_ + looper.accumulated_time_] = projectile_image_points[0];
+            looper.accumulated_time_ += add_time;
+        }
         closed_loop_->update_projectiles_messages(looper);
         //------------------------------------------------------------------------------------------------
 
@@ -213,12 +244,21 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         cv::putText(draw_image, full_time_str, cv::Point(500, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 255, 0), 3);
         all_armor_images_->change(draw_bias_time, draw_image);
 
-        /*cv_bridge::CvImage cv_image;
+        // 绘制弹丸模拟轨迹
+        for(std::map<double, cv::Point2d>::iterator iter = looper.projectile_image_points_.begin(); iter != looper.projectile_image_points_.end(); iter++)
+        {
+            cv::circle(draw_image, iter->second, 10, cv::Scalar(0, 0, 255), -1);
+            // 在圆圈上画上图片时间戳
+            std::string time_str = std::to_string(iter->first) + "ms";
+            cv::putText(draw_image, time_str, iter->second + cv::Point2d(0, -50), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
+        }
+
+        cv_bridge::CvImage cv_image;
         cv_image.image = draw_image;
         cv_image.encoding = "bgr8";
         cv_image.header = msg->image_header;
         sensor_msgs::msg::Image draw_image_msg = *(cv_image.toImageMsg());
-        closed_loop_result_image_pub_.publish(draw_image_msg);*/
+        closed_loop_result_image_pub_.publish(draw_image_msg);
         //------------------------------------------------------------------------------------------------
     }
 }
@@ -243,7 +283,7 @@ void ClosedLoopNode::tracker_image_callback(const sensor_msgs::msg::Image::Share
     {
         bias_time = image_time - init_time_; //ms
         all_armor_images_->insert(bias_time, cv_ptr->image);
-        closed_loop_->add_projectiles_messages(image_time, cv_ptr->image);
+        closed_loop_->add_projectiles_messages(bias_time, cv_ptr->image);
     }
 
     if(all_armor_images_->get_size() == 0)
@@ -260,20 +300,24 @@ void ClosedLoopNode::simulated_projectile_trajectory()
     }
     if(closed_loop_->all_projectiles_messages_->get_begin().second.fly_t_ <= 0)
     {
-        closed_loop_->all_projectiles_messages_->pop();
+        if(closed_loop_->all_projectiles_messages_->get_begin().second.accumulated_time_ > 0)
+        {
+            std::cout << "The projectile trajectory is over -- pop pop pop!" << std::endl;
+            closed_loop_->all_projectiles_messages_->pop();
+        }
         return;
     }
 
     Looper looper = closed_loop_->all_projectiles_messages_->get_begin().second;
-    looper.accumulated_time_ += closed_loop_->dt_;
-    looper.fly_t_ -= closed_loop_->dt_;
+    looper.accumulated_time_ += 0.002;
+    looper.fly_t_ -= 0.002;
     geometry_msgs::msg::PoseStamped projectile_pose; // -- odom坐标系下
     projectile_pose = closed_loop_->get_projectile_pose(looper.odom_projectile_pose_, looper.odom_armor_pose_, looper.accumulated_time_, looper.v0, looper.theta_);
     try
     {
         geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
             "camera_optical_frame", "odom",
-            this->now());
+            tf2::TimePointZero);
 
         tf2::doTransform(projectile_pose, projectile_pose, transformStamped);
     }
@@ -287,6 +331,9 @@ void ClosedLoopNode::simulated_projectile_trajectory()
     std::vector<cv::Point2d> cv_projectile_image_points = get_image_points({cv_projectile_pose});
     cv::Mat draw_image = all_armor_images_->get(looper.image_time_);
     cv::circle(draw_image, cv_projectile_image_points[0], 10, cv::Scalar(0, 0, 255), -1);
+    // 在圆圈上画上图片时间戳
+    std::string time_str = std::to_string(looper.image_time_) + "ms";
+    cv::putText(draw_image, time_str, cv_projectile_image_points[0] + cv::Point2d(0, -50), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 3);
     cv_bridge::CvImage cv_image;
     cv_image.image = draw_image;
     cv_image.encoding = "bgr8";
