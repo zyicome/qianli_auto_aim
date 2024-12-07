@@ -318,31 +318,7 @@ int Trajectoryer::solve_trajectory()
 //----------------------------------------------
 //进行选板，选择最适合击打的装甲板
     bool is_change_armor = false;
-    if(armor_num == 2)
-    {
-        for (i = 0; i<2; i++) {
-        result position_result;
-        float tmp_yaw = tar_yaw + i * M_PI;
-        float r = r_1;
-        position_result.x = car_ros_x - r*cos(tmp_yaw);
-        position_result.y = car_ros_y - r*sin(tmp_yaw);
-        position_result.z = armor_ros_z;
-        position_result.yaw = tmp_yaw;
-        results.push_back(position_result);
-        }
-
-        float yaw_diff_min = fabs(results.at(0).yaw - now_yaw);
-        float temp_yaw_diff = fabs(results.at(1).yaw - now_yaw);
-        if(temp_yaw_diff < yaw_diff_min)
-        {
-            yaw_diff_min = temp_yaw_diff;
-            idx = 1;
-        }
-        else{
-            idx = 0;
-        }
-    }
-    else if(armor_num == 3)
+    if(armor_num == 3)
     {
         for (i = 0; i<3; i++) {
         result position_result;
