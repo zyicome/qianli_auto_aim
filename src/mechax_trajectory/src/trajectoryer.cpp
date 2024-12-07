@@ -373,22 +373,56 @@ int Trajectoryer::solve_trajectory()
     }
     else
     {
+        // 选板逻辑，采用先计算出所有装甲板的位置信息，然后选择最适合的装甲板
+        // 1.计算出所有装甲板与自己的距离，先去除两个最远的装甲板
+        // 2.根据敌我连线的角度和两个装甲板的角度差，选择最适合的装甲板
+
         for (i = 0; i<4; i++) {
-        result position_result;
-        float tmp_yaw = tar_yaw + i * M_PI/2.0;
-        float r = use_1 ? r_1 : r_2;
-        position_result.x = car_ros_x - r*cos(tmp_yaw);
-        position_result.y = car_ros_y - r*sin(tmp_yaw);
-        position_result.z = use_1 ? armor_ros_z : armor_ros_z + dz;
-        position_result.yaw = tmp_yaw;
-        results.push_back(position_result);
-        use_1 = !use_1;
+            result position_result;
+            float tmp_yaw = tar_yaw + i * M_PI/2.0;
+            float r = use_1 ? r_1 : r_2;
+            position_result.x = car_ros_x - r*cos(tmp_yaw);
+            position_result.y = car_ros_y - r*sin(tmp_yaw);
+            position_result.z = use_1 ? armor_ros_z : armor_ros_z + dz;
+            position_result.yaw = tmp_yaw;
+            position_result.distance = sqrtf(pow(position_result.x, 2) + pow(position_result.y, 2) + pow(position_result.z, 2));
+            results.push_back(position_result);
+            use_1 = !use_1;
         }
 
-        float yaw_diff_min = fabs(results.at(0).yaw - now_yaw);
-        for(int i = 1; i<4; i++)
+        int distance_ignore_one = 0;
+        int distance_ignore_two = 0;
+        double distance_max = results.at(0).distance;
+        for(i = 1; i<4; i++)
         {
-            float temp_yaw_diff = fabs(results.at(i).yaw - now_yaw);
+            if(results.at(i).distance > distance_max)
+            {
+                distance_max = results.at(i).distance;
+                distance_ignore_one = i;
+            }
+        }
+        double distance_max_two = results.at(0).distance;
+        for(i = 1; i<4; i++)
+        {
+            if(i == distance_ignore_one)
+            {
+                continue;
+            }
+            if(results.at(i).distance > distance_max_two)
+            {
+                distance_max_two = results.at(i).distance;
+                distance_ignore_two = i;
+            }
+        }
+
+        float car_odom_yaw = atan2(car_ros_y, car_ros_x);
+        float armor_odom_yaw = atan2(results.at(0).y, results.at(0).x);
+
+        float yaw_diff_min = fabs(armor_odom_yaw - car_odom_yaw);
+        for(int i = 1; i<4; i++ && i != distance_ignore_one && i != distance_ignore_two)
+        {
+            armor_odom_yaw = atan2(results.at(i).y, results.at(i).x);
+            float temp_yaw_diff = fabs(armor_odom_yaw - car_odom_yaw);
             if(temp_yaw_diff < yaw_diff_min)
             {
                 yaw_diff_min = temp_yaw_diff;

@@ -39,6 +39,7 @@ struct result
     float z;
     float yaw;
     float pitch;
+    float distance;
 };
 
 class Trajectoryer : public::rclcpp::Node
