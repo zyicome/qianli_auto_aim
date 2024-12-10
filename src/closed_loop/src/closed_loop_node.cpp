@@ -158,7 +158,7 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         looper.odom_armor_pose_.header = msg->image_header;
         // 得到弹丸在图像时间戳下的像素坐标
         double add_time = 0.002;
-        while(looper.accumulated_time_ < looper.fly_t_)
+        while(looper.accumulated_time_ < looper.fly_t_ && rclcpp::ok())
         {
             std::cout << "looper.odom_projectile_pose_: " << looper.odom_projectile_pose_.pose.position.x << " " << looper.odom_projectile_pose_.pose.position.y << " " << looper.odom_projectile_pose_.pose.position.z << std::endl;
             std::cout << "looper.odom_armor_pose_: " << looper.odom_armor_pose_.pose.position.x << " " << looper.odom_armor_pose_.pose.position.y << " " << looper.odom_armor_pose_.pose.position.z << std::endl;
