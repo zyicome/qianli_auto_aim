@@ -11,3 +11,4 @@ src/ros2-hik-camera/config/camera_info.yaml
 src/ros2-hik-camera/config/camera_params.yaml
 src/ros2-mindvision-camera/config/camera_info.yaml
 src/ros2-mindvision-camera/config/camera_params.yaml
+kernel.errors.txt

@@ -408,7 +408,7 @@ int Trajectoryer::solve_trajectory()
     }
     if(idx != 0)
     {
-        is_change_armor = true;
+        is_change_armor = false;
         //std::cout << "mechax_trajectory change armor" << std::endl;
     }
 //得到results :存放了所有装甲板的位置信息 
