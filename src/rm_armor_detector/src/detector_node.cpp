@@ -343,7 +343,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
 
                 // 采用传统pnp方法计算yaw
                 // rvec to 3x3 rotation matrix
-                /*cv::Mat rotation_matrix;
+                cv::Mat rotation_matrix;
                 cv::Rodrigues(rvec, rotation_matrix);
                 // rotation matrix to quaternion
                 tf2::Matrix3x3 tf2_rotation_matrix(
@@ -354,7 +354,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 rotation_matrix.at<double>(2, 2));
                 tf2::Quaternion tf2_q;
                 tf2_rotation_matrix.getRotation(tf2_q);
-                armor_msg.pose.orientation = tf2::toMsg(tf2_q);*/
+                armor_msg.pose.orientation = tf2::toMsg(tf2_q);
 
                 // tvec to translation
                 armor_msg.pose.position.x = tvec.at<double>(0);
