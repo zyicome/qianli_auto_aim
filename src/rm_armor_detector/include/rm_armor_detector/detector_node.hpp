@@ -65,7 +65,7 @@ public:
     std::vector<int> ignore_armors_;
     std::vector<DecisionArmor> decision_armors_;
 
-    cv::Point2d last_decision_armor_image_point_;
+    cv::Point2i last_decision_armor_image_point_;
     int last_decision_armor_id_;
     bool is_repeat;
 

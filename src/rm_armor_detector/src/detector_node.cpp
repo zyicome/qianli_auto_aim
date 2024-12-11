@@ -553,17 +553,34 @@ void ArmorDetectorNode::get_robots(std::vector<DecisionArmor> &decision_armors, 
         armor_id = armors[i].id;
         armor_color = armors[i].color;
         armor_four_points = armors[i].four_points;
+        cv::Point armor_center = cv::Point((armor_four_points[0].x + armor_four_points[2].x) / 2, (armor_four_points[0].y + armor_four_points[2].y) / 2);
         is_big_armor = get_is_big_armor(armor_four_points);
         if(get_is_ignored(armors[i], armor_four_points) == true)
         {
             continue;
+        }
+        if(decision_armors[armor_id].is_continue == true) // 重复装甲板出现
+        {
+            std::cout << "111" << std::endl;
+            if(last_decision_armor_id_ == decision_armors[armor_id].id) // 并且有上一次的记录
+            {
+                // 比较谁离上一次的记录装甲板更相近，则选择哪个装甲板
+                cv::Point now_decision_armor_center = cv::Point((decision_armors[armor_id].four_points[0].x + decision_armors[armor_id].four_points[2].x) / 2, (decision_armors[armor_id].four_points[0].y + decision_armors[armor_id].four_points[2].y) / 2);
+                double distance_one = cv::norm(now_decision_armor_center - last_decision_armor_image_point_);
+                double distance_two = cv::norm(armor_center - last_decision_armor_image_point_);
+                std::cout << "distance_one: " << distance_one << std::endl;
+                std::cout << "distance_two: " << distance_two << std::endl;
+                if(distance_one < distance_two) // 如果原来的就比较好，就跳过
+                {
+                    continue;
+                }
+            }
         }
         decision_armors[armor_id].is_big_armor = is_big_armor;
         decision_armors[armor_id].is_ignored = false;
         decision_armors[armor_id].is_continue = true;
         decision_armors[armor_id].id = armor_id;
         decision_armors[armor_id].color = armor_color;
-        cv::Point armor_center = cv::Point((armor_four_points[0].x + armor_four_points[2].x) / 2, (armor_four_points[0].y + armor_four_points[2].y) / 2);
         decision_armors[armor_id].distance_to_image_center = pnp_solver_->get_distance_armor_center_to_image_center(armor_center);
         decision_armors[armor_id].four_points = armor_four_points;
     }
@@ -680,6 +697,8 @@ DecisionArmor ArmorDetectorNode::decide_armor_shoot(const std::vector<DecisionAr
         decision_armor = decision_armors[decision_distance_id];
     }
     last_decision_armor_id_ = decision_armor.id;
+    cv::Point now_decision_armor_center = cv::Point((decision_armor.four_points[0].x + decision_armor.four_points[2].x) / 2, (decision_armor.four_points[0].y + decision_armor.four_points[2].y) / 2);
+    last_decision_armor_image_point_ = now_decision_armor_center;
     return decision_armor;
 }
 
