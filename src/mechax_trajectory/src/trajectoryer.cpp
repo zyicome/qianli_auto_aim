@@ -292,7 +292,7 @@ int Trajectoryer::solve_trajectory()
 //----------------------------------------------
 //进行预测，预测出击打目标的位置
     vector<result> results;
-    float need_t = fly_t + latency_bias_time + motor_bias_time + serial_bias_time;
+    float need_t = fly_t + latency_bias_time + serial_bias_time;
     if(std::isnan(need_t))
     {
         std::cout << "need_t is nan" << std::endl;
