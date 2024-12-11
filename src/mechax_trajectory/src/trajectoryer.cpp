@@ -406,10 +406,10 @@ int Trajectoryer::solve_trajectory()
             }
         }
     }
-    if(idx != 0)
+    if(idx != 0 || is_repeat)
     {
         is_change_armor = false;
-        //std::cout << "mechax_trajectory change armor" << std::endl;
+        std::cout << "mechax_trajectory change armor" << std::endl;
     }
 //得到results :存放了所有装甲板的位置信息 
 //得到idx :选择的装甲板的编号
@@ -431,7 +431,7 @@ int Trajectoryer::solve_trajectory()
     }
 //----------------------------------------------
     // 应用tf2将坐标系从odom下转换到shoot下
-    geometry_msgs::msg::PointStamped ps;
+    /*geometry_msgs::msg::PointStamped ps;
     ps.header.stamp = armor_time;
     ps.header.frame_id = "odom";
     ps.point.x = object_x;
@@ -449,7 +449,7 @@ int Trajectoryer::solve_trajectory()
     {
         std::cerr << e.what() << '\n';
         return 0;
-    }
+    }*/
 //---------------------------------------------
     // 用于三维可视化，与计算没有什么影响,后期可以删除
     visualization_msgs::msg::Marker aiming_point_;
@@ -558,6 +558,8 @@ void Trajectoryer::targetCallback(const rm_msgs::msg::Target msg)
     r_1 = msg.radius_1;
     r_2 = msg.radius_2;
     dz = msg.dz;
+
+    is_repeat = msg.is_repeat;
 
     // 闭环数据收集
     closed_loop_msg_.now_pose.position.x = car_ros_x;

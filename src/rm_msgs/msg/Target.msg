@@ -12,3 +12,4 @@ float64 radius_1
 float64 radius_2
 float64 dz
 float64 c_to_a_pitch
+bool is_repeat

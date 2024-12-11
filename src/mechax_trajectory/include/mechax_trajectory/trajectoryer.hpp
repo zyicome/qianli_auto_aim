@@ -116,6 +116,7 @@ public:
     float randa;
     bool is_hero;
     double max_yaw_diff;
+    bool is_repeat;
     //------------------
     // Subsciption
     //------------------

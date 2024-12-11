@@ -65,6 +65,10 @@ public:
     std::vector<int> ignore_armors_;
     std::vector<DecisionArmor> decision_armors_;
 
+    cv::Point2d last_decision_armor_image_point_;
+    int last_decision_armor_id_;
+    bool is_repeat;
+
     std::shared_ptr<OpenvinoDetector> openvino_detector_;
     std::shared_ptr<LightsDetector> lights_detector_;
     std::shared_ptr<PnpSolver> pnp_solver_;

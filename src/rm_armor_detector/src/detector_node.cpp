@@ -99,6 +99,9 @@ void ArmorDetectorNode::parameters_init()
     detector_fps_ = 0;
     detector_now_fps_ = 0;
 
+    last_decision_armor_image_point_ = cv::Point2d(0,0);
+    last_decision_armor_id_ = -1;
+
     // Subscriber with tf2 message_filter
     // tf2 relevant
     tf2_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
@@ -409,6 +412,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 }
                 decision_armor.is_big_armor == true ? armor_msg.type = "BIG" : armor_msg.type = "SMALL";
                 armor_msg.distance_to_image_center = decision_armor.distance_to_image_center;
+                armor_msg.is_repeat = is_repeat;
                 armor_pub_->publish(armor_msg);
             }
             else
@@ -624,6 +628,8 @@ DecisionArmor ArmorDetectorNode::decide_armor_shoot(const std::vector<DecisionAr
     int min_distance_to_image_center = 10000;
     int decision_distance_id = 0;
     int decision_priority_id = 0;
+    is_repeat = false;
+    int armor_number[9] = {0};
     std::vector<int> decision_ids;
     for(size_t i = 0;i<decision_armors.size();i++)
     {
@@ -643,6 +649,11 @@ DecisionArmor ArmorDetectorNode::decide_armor_shoot(const std::vector<DecisionAr
             {
                 min_distance_to_image_center = decision_armors[i].distance_to_image_center;
                 decision_distance_id = i;
+            }
+            armor_number[decision_armors[i].id]++;
+            if(armor_number[decision_armors[i].id] >= 2 && last_decision_armor_id_ == decision_armors[i].id)
+            {
+                is_repeat = true;
             }
         }
     }
@@ -668,6 +679,7 @@ DecisionArmor ArmorDetectorNode::decide_armor_shoot(const std::vector<DecisionAr
     {
         decision_armor = decision_armors[decision_distance_id];
     }
+    last_decision_armor_id_ = decision_armor.id;
     return decision_armor;
 }
 

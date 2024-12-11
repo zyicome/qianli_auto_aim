@@ -136,29 +136,6 @@ void ArmorTrackerNode::armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_
         std::cerr << e.what() << '\n';
         return;
     }
-
-    // 提取四元数的各个分量
-        double w = armor_msg->pose.orientation.w;
-        double x = armor_msg->pose.orientation.x;
-        double y = armor_msg->pose.orientation.y;
-        double z = armor_msg->pose.orientation.z;
-
-        // 计算欧拉角
-
-        double sinp = 2 * (w * y - z * x);
-        double pitch;
-        if (std::abs(sinp) >= 1)
-            pitch = std::copysign(M_PI / 2, sinp); // 使用90度或-90度
-        else
-            pitch = std::asin(sinp);
-
-        double sinr_cosp = 2 * (w * x + y * z);
-        double cosr_cosp = 1 - 2 * (x * x + y * y);
-        double roll = std::atan2(sinr_cosp, cosr_cosp);
-
-        double siny_cosp = 2 * (w * z + x * y);
-        double cosy_cosp = 1 - 2 * (y * y + z * z);
-        double yaw = std::atan2(siny_cosp, cosy_cosp);
     
     if(armor_msg->color != 2)
     {
@@ -211,26 +188,13 @@ void ArmorTrackerNode::armorCallback(const rm_msgs::msg::Armor::SharedPtr armor_
         target_msg.car_velocity.y = tracker_->target_state_.at<double>(3,0);
         target_msg.car_velocity.z = tracker_->target_state_.at<double>(5,0);
         target_msg.yaw = tracker_->target_state_.at<double>(6,0);
-
-        // 采用投影方法计算yaw
-        double roll = - 75.0 * CV_PI / 180.0;
-        double pitch = 0.0;
-        double trans_yaw = yaw; // 这里的yaw是绕z轴的旋转
-        tf2::Quaternion q_roll, q_pitch, q_yaw;
-        // 设置四元数值
-        q_roll.setRPY(roll, 0.0, 0.0);
-        q_pitch.setRPY(0.0, pitch, 0.0);
-        q_yaw.setRPY(0.0, 0.0, trans_yaw);
-        // 按照特定的顺序组合四元数
-        tf2::Quaternion q_combined = q_yaw * q_pitch * q_roll;
-        target_msg.car_position.orientation = tf2::toMsg(q_combined); // 先饶z轴yaw，再绕y轴pitch，最后绕x轴roll
-        target_msg.armor_position.orientation = tf2::toMsg(q_combined); // 先饶z轴yaw，再绕y轴pitch，最后绕x轴roll
-
         target_msg.v_yaw = tracker_->target_state_.at<double>(7,0);
         target_msg.radius_1 = tracker_->target_state_.at<double>(8,0);
         target_msg.radius_2 = tracker_->another_r_;
 
         target_msg.c_to_a_pitch = armor_msg->c_to_a_pitch;
+
+        target_msg.is_repeat = armor_msg->is_repeat;
 
         target_pub_->publish(target_msg);
     }
