@@ -133,5 +133,5 @@ def generate_launch_description():
         tracker_node_delay,
         serial_driver_node_delay,
         mechax_trajectory_node_delay,
-        #clsoed_loop_node_delay,
+        clsoed_loop_node_delay,
     ])

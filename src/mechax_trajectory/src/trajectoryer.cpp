@@ -357,19 +357,20 @@ int Trajectoryer::solve_trajectory()
             result position_result;
             float tmp_yaw = tar_yaw + i * M_PI/2.0;
             float r = use_1 ? r_1 : r_2;
-            position_result.x = car_ros_x - r*cos(tmp_yaw);
-            position_result.y = car_ros_y - r*sin(tmp_yaw);
+            position_result.x = car_ros_x - r*sin(tmp_yaw);
+            position_result.y = car_ros_y + r*cos(tmp_yaw);
             position_result.z = use_1 ? armor_ros_z : armor_ros_z + dz;
             position_result.yaw = tmp_yaw;
             position_result.distance = sqrtf(pow(position_result.x, 2) + pow(position_result.y, 2) + pow(position_result.z, 2));
             results.push_back(position_result);
             use_1 = !use_1;
+            std::cout << "第" << i << "个装甲板: tmp_yaw: " << tmp_yaw << std::endl;
         }
 
         int distance_ignore_one = 0;
         int distance_ignore_two = 0;
-        double distance_max = results.at(0).distance;
-        for(i = 1; i<4; i++)
+        double distance_max = 0;
+        for(i = 0; i<4; i++)
         {
             if(results.at(i).distance > distance_max)
             {
@@ -377,8 +378,8 @@ int Trajectoryer::solve_trajectory()
                 distance_ignore_one = i;
             }
         }
-        double distance_max_two = results.at(0).distance;
-        for(i = 1; i<4; i++)
+        double distance_max_two = 0;
+        for(i = 0; i<4; i++)
         {
             if(i == distance_ignore_one)
             {
@@ -392,11 +393,15 @@ int Trajectoryer::solve_trajectory()
         }
 
         float car_odom_yaw = atan2(car_ros_y, car_ros_x);
-        float armor_odom_yaw = atan2(results.at(0).y, results.at(0).x);
+        float armor_odom_yaw;
 
-        float yaw_diff_min = fabs(armor_odom_yaw - car_odom_yaw);
-        for(int i = 1; i<4; i++ && i != distance_ignore_one && i != distance_ignore_two)
+        float yaw_diff_min = 10000;
+        for(i = 0; i<4; i++)
         {
+            if(i == distance_ignore_one || i == distance_ignore_two)
+            {
+                continue;
+            }
             armor_odom_yaw = atan2(results.at(i).y, results.at(i).x);
             float temp_yaw_diff = fabs(armor_odom_yaw - car_odom_yaw);
             if(temp_yaw_diff < yaw_diff_min)
@@ -404,12 +409,19 @@ int Trajectoryer::solve_trajectory()
                 yaw_diff_min = temp_yaw_diff;
                 idx = i;
             }
+            std::cout << "第" << i << "个装甲板： armor_odom_yaw: " << armor_odom_yaw << "  temp_yaw_diff: " <<temp_yaw_diff<<std::endl;
+            std::cout << "x: " << results.at(i).x << "   y: " << results.at(i).y << "  z: " << results.at(i).z <<std::endl;
+            std::cout << "results.at(i).distance: " << results.at(i).distance << std::endl;
         }
+
+        std::cout << "car_odom_yaw" << car_odom_yaw << std::endl;
+        std::cout << "idx" << idx << std::endl;
+        std::cout << "yaw_diff_min" << yaw_diff_min << std::endl;
     }
-    if(idx != 0 || is_repeat)
+    if(idx != 0)
     {
-        is_change_armor = false;
-        //std::cout << "mechax_trajectory change armor" << std::endl;
+        is_change_armor = true;
+        std::cout << "mechax_trajectory change armor" << std::endl;
     }
 //得到results :存放了所有装甲板的位置信息 
 //得到idx :选择的装甲板的编号

@@ -109,13 +109,13 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         bool is_contain = all_armor_images_->contains(draw_bias_time);
         if(!is_contain)
         {
-            std::cout << "draw_bias_time: " << draw_bias_time << " is not in all_armor_images_!" << std::endl;
+            //std::cout << "draw_bias_time: " << draw_bias_time << " is not in all_armor_images_!" << std::endl;
             return;
         }
         cv::Mat draw_image = all_armor_images_->get(draw_bias_time);
         if(draw_image.empty())
         {
-            std::cout << "draw_image is empty!" << std::endl;
+            //std::cout << "draw_image is empty!" << std::endl;
             return;
         }
 
@@ -160,10 +160,10 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
         double add_time = 0.002;
         while(looper.accumulated_time_ < looper.fly_t_ && rclcpp::ok())
         {
-            std::cout << "looper.odom_projectile_pose_: " << looper.odom_projectile_pose_.pose.position.x << " " << looper.odom_projectile_pose_.pose.position.y << " " << looper.odom_projectile_pose_.pose.position.z << std::endl;
-            std::cout << "looper.odom_armor_pose_: " << looper.odom_armor_pose_.pose.position.x << " " << looper.odom_armor_pose_.pose.position.y << " " << looper.odom_armor_pose_.pose.position.z << std::endl;
+            //std::cout << "looper.odom_projectile_pose_: " << looper.odom_projectile_pose_.pose.position.x << " " << looper.odom_projectile_pose_.pose.position.y << " " << looper.odom_projectile_pose_.pose.position.z << std::endl;
+            //std::cout << "looper.odom_armor_pose_: " << looper.odom_armor_pose_.pose.position.x << " " << looper.odom_armor_pose_.pose.position.y << " " << looper.odom_armor_pose_.pose.position.z << std::endl;
             geometry_msgs::msg::PoseStamped projectile_pose = closed_loop_->get_projectile_pose(looper.odom_projectile_pose_, looper.odom_armor_pose_, looper.accumulated_time_, looper.v0, looper.theta_);
-            std::cout << "projectile_pose: " << projectile_pose.pose.position.x << " " << projectile_pose.pose.position.y << " " << projectile_pose.pose.position.z << std::endl;
+            //std::cout << "projectile_pose: " << projectile_pose.pose.position.x << " " << projectile_pose.pose.position.y << " " << projectile_pose.pose.position.z << std::endl;
             try
             {
                 geometry_msgs::msg::TransformStamped transformStamped = tf2_buffer_->lookupTransform(
@@ -177,12 +177,12 @@ void ClosedLoopNode::trajectory_closed_loop_callback(const rm_msgs::msg::ClosedL
                 RCLCPP_ERROR(this->get_logger(), "Transform error: %s", ex.what());
                 return;
             }
-            std::cout << "camera _- projectile_pose: " << projectile_pose.pose.position.x << " " << projectile_pose.pose.position.y << " " << projectile_pose.pose.position.z << std::endl;
+            //std::cout << "camera _- projectile_pose: " << projectile_pose.pose.position.x << " " << projectile_pose.pose.position.y << " " << projectile_pose.pose.position.z << std::endl;
             cv::Point3d cv_projectile_point = cv::Point3d(projectile_pose.pose.position.x, projectile_pose.pose.position.y, projectile_pose.pose.position.z);
             std::vector<cv::Point2d> projectile_image_points = get_image_points({cv_projectile_point});
-            std::cout << "projectile_image_points: " << projectile_image_points[0] << std::endl;
-            std::cout << "looper.accumulated_time_: " << looper.accumulated_time_ << std::endl;
-            std::cout << "looper.fly_t_: " << looper.fly_t_ << std::endl;
+            //std::cout << "projectile_image_points: " << projectile_image_points[0] << std::endl;
+            //std::cout << "looper.accumulated_time_: " << looper.accumulated_time_ << std::endl;
+            //std::cout << "looper.fly_t_: " << looper.fly_t_ << std::endl;
             looper.projectile_image_points_[looper.shoot_time_ + looper.accumulated_time_] = projectile_image_points[0];
             looper.accumulated_time_ += add_time;
         }
@@ -304,7 +304,7 @@ void ClosedLoopNode::simulated_projectile_trajectory()
     {
         if(closed_loop_->all_projectiles_messages_->get_begin().second.accumulated_time_ > 0)
         {
-            std::cout << "The projectile trajectory is over -- pop pop pop!" << std::endl;
+            //std::cout << "The projectile trajectory is over -- pop pop pop!" << std::endl;
             closed_loop_->all_projectiles_messages_->pop();
         }
         return;

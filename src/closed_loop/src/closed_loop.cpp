@@ -52,7 +52,7 @@ void ClosedLoop::update_projectiles_messages(Looper& looper)
     }
     else
     {
-        std::cout << "The image_time_ is not in the all_projectiles_messages_" << std::endl;
+        //std::cout << "The image_time_ is not in the all_projectiles_messages_" << std::endl;
         return;
     }
 }
@@ -80,7 +80,7 @@ geometry_msgs::msg::PoseStamped ClosedLoop::get_projectile_pose(const geometry_m
         x += vx * dt_;
         y += vy * dt_;
         d_time -= dt_;
-        std::cout << "vx: " << vx << " vy: " << vy << " x: " << x << " y: " << y << std::endl;
+        //std::cout << "vx: " << vx << " vy: " << vy << " x: " << x << " y: " << y << std::endl;
     }
 
     cv::Mat xy_vec = (cv::Mat_<double>(2, 1) << (odom_armor_pose.pose.position.x - odom_projectile_pose.pose.position.x),(odom_armor_pose.pose.position.y - odom_projectile_pose.pose.position.y));
