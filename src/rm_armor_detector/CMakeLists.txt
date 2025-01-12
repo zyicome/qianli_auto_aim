@@ -5,8 +5,13 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-set(OpenVINO_LIBRARIES "//opt/inter/usr/local/runtime/lib/intel64/libopenvino.so")
-set(OpenVINO_INCLUDE_DIRS "/opt/inter/usr/local/runtime/include")
+#set(OpenVINO_LIBRARIES "//opt/inter/usr/local/runtime/lib/intel64/libopenvino.so")
+#set(OpenVINO_INCLUDE_DIRS "/opt/inter/usr/local/runtime/include")
+# 设置 OpenVINO 头文件路径
+include_directories(
+    /home/mechax/zyb/zyb_mechax_plan/openvino/src/core/include
+    /home/mechax/zyb/zyb_mechax_plan/openvino/src/inference/include
+)
 
 # find dependencies
 find_package(ament_cmake_auto REQUIRED)

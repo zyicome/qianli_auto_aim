@@ -15,7 +15,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #######################
 ## Find dependencies ##
 #######################
-
+set(ament_cpplint_DIR "/opt/ros/humble/share/ament_cmake_cpplint")
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
@@ -36,6 +36,9 @@ else()
   message(FATAL_ERROR "Unsupport host system architecture: ${CMAKE_HOST_SYSTEM_PROCESSOR}!")
 endif()
 
+
+3
+
 target_link_libraries(${PROJECT_NAME} MVSDK)
 
 rclcpp_components_register_node(${PROJECT_NAME}
@@ -49,7 +52,7 @@ rclcpp_components_register_node(${PROJECT_NAME}
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
-  find_package(ament_cpplint REQUIRED)
+ # find_package(ament_cpplint REQUIRED)
 
   list(APPEND AMENT_LINT_AUTO_EXCLUDE
     ament_cmake_copyright
