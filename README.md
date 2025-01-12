@@ -70,8 +70,24 @@
 
 # To do 
 
-- [] 解决pnp对yaw方向姿态解算不准确的问题--投影变换法
+- [*] 解决pnp对yaw方向姿态解算不准确的问题--投影变换法
 - [] 弹道效正和弹道估计
 - [] 优化运动方程和精细火控
 - [] 实现收敛快速的平移运动模型
 - [] 参数更新
+
+# 使用方法
+## 环境要求
+```
+ros2 C++/C
+openCV 4.5.4
+Cmake
+OpenVINO
+```
+
+## 编译运行
+```
+colcon build
+. install/setup.bash
+ros2 launch rm_startup rm_launch.py
+```
