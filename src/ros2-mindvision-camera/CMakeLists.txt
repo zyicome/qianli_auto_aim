@@ -35,9 +35,6 @@ else()
   message(FATAL_ERROR "Unsupport host system architecture: ${CMAKE_HOST_SYSTEM_PROCESSOR}!")
 endif()
 
-
-3
-
 target_link_libraries(${PROJECT_NAME} MVSDK)
 
 rclcpp_components_register_node(${PROJECT_NAME}
