@@ -15,7 +15,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 #######################
 ## Find dependencies ##
 #######################
-set(ament_cpplint_DIR "/opt/ros/humble/share/ament_cmake_cpplint")
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 
