@@ -26,10 +26,8 @@ void OpenvinoDetector::set_onnx_model(const std::string &model_path, const std::
 
 void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
 {
-    cv::Mat resized_img = input.clone();
-    cv::resize(resized_img, resized_img, cv::Size(resized_img.cols / 2, resized_img.rows / 2));
-    float x_resized_scale = resized_img.cols / input.cols;
-    float y_resized_scale = resized_img.rows / input.rows;
+    cv::Rect roiRect(input.cols / 2 - 300, input.rows / 2 - 300, 600, 600);
+    cv::Mat resized_img = input(roiRect);
     armors_.clear();
     // -------- Step 5. Prepare input --------
     cv::Mat letterbox_img = letterbox(resized_img);
@@ -212,19 +210,17 @@ void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
         armor.number_score = number_score;
         armor.color_score = color_score;
         armor.name = class_name;
-        box.x = box.x / x_resized_scale;
-        box.y = box.y / y_resized_scale;
-        box.width = box.width / x_resized_scale;
-        box.height = box.height / y_resized_scale;
+        box.x = input.cols / 2 - 300 + box.x;
+        box.y = input.rows / 2 - 300 + box.y;
         armor.rect = box;
-        four_points[0].x = four_points[0].x / x_resized_scale;
-        four_points[0].y = four_points[0].y / y_resized_scale;
-        four_points[1].x = four_points[1].x / x_resized_scale;
-        four_points[1].y = four_points[1].y / y_resized_scale;
-        four_points[2].x = four_points[2].x / x_resized_scale;
-        four_points[2].y = four_points[2].y / y_resized_scale;
-        four_points[3].x = four_points[3].x / x_resized_scale;
-        four_points[3].y = four_points[3].y / y_resized_scale;
+        four_points[0].x = input.cols / 2 - 300 + four_points[0].x;
+        four_points[0].y = input.rows / 2 - 300 + four_points[0].y;
+        four_points[1].x = input.cols / 2 - 300 + four_points[1].x;
+        four_points[1].y = input.rows / 2 - 300 + four_points[1].y;
+        four_points[2].x = input.cols / 2 - 300 + four_points[2].x;
+        four_points[2].y = input.rows / 2 - 300 + four_points[2].y;
+        four_points[3].x = input.cols / 2 - 300 + four_points[3].x;
+        four_points[3].y = input.rows / 2 - 300 + four_points[3].y;
         armor.four_points = four_points;
         armors_.push_back(armor);
     }
