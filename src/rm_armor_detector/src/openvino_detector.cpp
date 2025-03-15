@@ -26,9 +26,13 @@ void OpenvinoDetector::set_onnx_model(const std::string &model_path, const std::
 
 void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
 {
+    cv::Mat resized_img = input.clone();
+    cv::resize(resized_img, resized_img, cv::Size(resized_img.cols / 2, resized_img.rows / 2));
+    float x_resized_scale = resized_img.cols / input.cols;
+    float y_resized_scale = resized_img.rows / input.rows;
     armors_.clear();
     // -------- Step 5. Prepare input --------
-    cv::Mat letterbox_img = letterbox(input);
+    cv::Mat letterbox_img = letterbox(resized_img);
     cv::Mat blob;
     cv::dnn::blobFromImage(letterbox_img, blob, 1.0 / 255.0, cv::Size(IMAGE_WIDTH_, IMAGE_HEIGHT_), cv::Scalar(), true, false);
 
@@ -208,7 +212,19 @@ void OpenvinoDetector::infer(const cv::Mat &input, int detect_color)
         armor.number_score = number_score;
         armor.color_score = color_score;
         armor.name = class_name;
+        box.x = box.x / x_resized_scale;
+        box.y = box.y / y_resized_scale;
+        box.width = box.width / x_resized_scale;
+        box.height = box.height / y_resized_scale;
         armor.rect = box;
+        four_points[0].x = four_points[0].x / x_resized_scale;
+        four_points[0].y = four_points[0].y / y_resized_scale;
+        four_points[1].x = four_points[1].x / x_resized_scale;
+        four_points[1].y = four_points[1].y / y_resized_scale;
+        four_points[2].x = four_points[2].x / x_resized_scale;
+        four_points[2].y = four_points[2].y / y_resized_scale;
+        four_points[3].x = four_points[3].x / x_resized_scale;
+        four_points[3].y = four_points[3].y / y_resized_scale;
         armor.four_points = four_points;
         armors_.push_back(armor);
     }
