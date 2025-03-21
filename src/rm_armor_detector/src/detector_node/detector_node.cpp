@@ -29,7 +29,7 @@ void ArmorDetectorNode::parameters_init()
       is_debug_ ? create_debug_publishers() : destroy_debug_publishers();
     });
 
-    #ifdef USE_CUDA
+    #ifdef USE_CUDA_DETCTOR
         RCLCPP_INFO(this->get_logger(), "Cuda detect mode!");
         auto pkg_path = ament_index_cpp::get_package_share_directory("rm_armor_detector");
         DL_INIT_PARAM params;
@@ -44,7 +44,7 @@ void ArmorDetectorNode::parameters_init()
         {
             RCLCPP_ERROR(this->get_logger(), "CreateSession failed: %s", ret);
         }
-    #elif USE_OPENVINO
+    #elif defined(USE_OPENVINO_DETCTOR)
         RCLCPP_INFO(this->get_logger(), "Openvino detect mode!");
         auto pkg_path = ament_index_cpp::get_package_share_directory("rm_armor_detector");
         auto model_path = pkg_path + "/model/four_points_armor/armor.onnx";
@@ -290,7 +290,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     // 1. Convert ROS image message to OpenCV image
     cv::Mat image = cv_bridge::toCvCopy(msg, "bgr8")->image;
     // 2. Detect armors
-    #ifdef USE_CUDA
+    #ifdef USE_CUDA_DETCTOR
         if(cuda_detector_ != nullptr)
         {
             cuda_detector_->infer(image, detect_color_);
@@ -302,7 +302,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
         {
             RCLCPP_ERROR(this->get_logger(), "Cuda detector is nullptr!");
         }
-    #elif USE_OPENVINO
+    #elif defined(USE_OPENVINO_DETCTOR)
         if(openvino_detector_ != nullptr)
         {
             openvino_detector_->infer(image, detect_color_);
@@ -455,9 +455,9 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     }
     if(is_debug_ == true)
     {
-        #ifdef USE_CUDA
+        #ifdef USE_CUDA_DETCTOR
             debug_deal(image, msg->header, cuda_detector_->armors_, decision_armor);
-        #elif USE_OPENVINO
+        #elif defined(USE_OPENVINO_DETCTOR)
             debug_deal(image, msg->header, openvino_detector_->armors_, decision_armor);
         #else
             std::vector<Armor> armors;
@@ -483,7 +483,7 @@ void ArmorDetectorNode::test()
 {
     std::string model_path = "/home/zyicome/zyb/qianli_auto_aim/src/rm_armor_detector/model/four_points_armor/armor.onnx";
     //std::string model_path = "/home/zyicome/zyb/qianli_auto_aim/src/rm_armor_detector/model/inference_armor/armor.onnx";
-    #ifdef USE_OPENVINO
+    #ifdef USE_OPENVINO_DETCTOR
         OpenvinoDetector detector;
         detector.set_onnx_model(model_path, "CPU");
         cv::Mat input = cv::imread("/home/zyicome/zyb/pictures/armors/images/8.jpg");

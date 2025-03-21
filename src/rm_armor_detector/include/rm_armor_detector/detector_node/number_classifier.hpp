@@ -7,7 +7,7 @@
 #include <vector>
 #include <fstream>
 
-#include "rm_armor_detector/armor.hpp"
+#include "armor.hpp"
 
 class NumberClassifier
 {

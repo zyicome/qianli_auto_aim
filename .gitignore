@@ -5,3 +5,5 @@ log/
 .git/
 kernel.errors.txt
 fishros
+/src/rm_armor_detector/onnxruntime/*
+/src/rm_armor_detector/openvino/*

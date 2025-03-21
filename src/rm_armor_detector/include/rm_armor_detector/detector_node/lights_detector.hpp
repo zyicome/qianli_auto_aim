@@ -3,8 +3,8 @@
 
 #include "opencv2/opencv.hpp"
 
-#include "rm_armor_detector/number_classifier.hpp"
-#include "rm_armor_detector/armor.hpp"
+#include "number_classifier.hpp"
+#include "armor.hpp"
 
 class LightsDetector
 {

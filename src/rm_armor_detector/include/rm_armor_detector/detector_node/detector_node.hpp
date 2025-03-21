@@ -25,12 +25,11 @@
 #include "armor.hpp"
 #include "projection_yaw.hpp"
 
-#define USE_CUDA
-//#define USE_OPENVINO
-
-#ifdef USE_CUDA
+#ifdef USE_CUDA_DETCTOR
     #include "cuda_detector.hpp"
-#elif USE_OPENVINO
+#endif
+
+#ifdef USE_OPENVINO_DETCTOR
     #include "openvino_detector.hpp"
 #endif
 
@@ -76,9 +75,9 @@ public:
     int last_decision_armor_id_;
     bool is_repeat;
 
-    #ifdef USE_CUDA
+    #ifdef USE_CUDA_DETECTOR
         std::shared_ptr<CudaDetector> cuda_detector_;
-    #elif USE_OPENVINO
+    #elif defined(USE_OPENVINO_DETCTOR)
         std::shared_ptr<OpenvinoDetector> openvino_detector_;
     #endif
 
