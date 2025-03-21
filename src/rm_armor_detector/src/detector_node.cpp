@@ -29,24 +29,31 @@ void ArmorDetectorNode::parameters_init()
       is_debug_ ? create_debug_publishers() : destroy_debug_publishers();
     });
 
-    this->declare_parameter("is_openvino", true);
-    is_openvino_ = this->get_parameter("is_openvino").as_bool();
-    std::cout << "is_openvino: " << is_openvino_ << std::endl;
-
-    if(is_openvino_ == false)
-    {
-        RCLCPP_INFO(this->get_logger(), "Light armor detect mode!");
-
-        lights_detector_ = initDetector();
-    }
-    else if(is_openvino_ == true)
-    {
+    #ifdef USE_CUDA
+        RCLCPP_INFO(this->get_logger(), "Cuda detect mode!");
+        auto pkg_path = ament_index_cpp::get_package_share_directory("rm_armor_detector");
+        DL_INIT_PARAM params;
+        params.rectConfidenceThreshold = 0.1;
+        params.iouThreshold = 0.5;
+        params.modelPath = pkg_path + "/model/four_points_armor/armor.onnx";
+        params.imgSize = { 640, 640 };
+        params.cudaEnable = true;
+        cuda_detector_ = std::make_shared<CudaDetector>();
+        char* ret = cuda_detector_->CreateSession(params);
+        if (ret != RET_OK)
+        {
+            RCLCPP_ERROR(this->get_logger(), "CreateSession failed: %s", ret);
+        }
+    #elif USE_OPENVINO
         RCLCPP_INFO(this->get_logger(), "Openvino detect mode!");
         auto pkg_path = ament_index_cpp::get_package_share_directory("rm_armor_detector");
         auto model_path = pkg_path + "/model/four_points_armor/armor.onnx";
         openvino_detector_ = std::make_shared<OpenvinoDetector>();
         openvino_detector_->set_onnx_model(model_path, "GPU");
-    }
+    #else
+        RCLCPP_INFO(this->get_logger(), "number detect mode!");
+        lights_detector_ = initDetector();
+    #endif
 
     this->declare_parameter("MIN_BIG_ARMOR_RATIO", 3.2);
     MIN_BIG_ARMOR_RATIO_ = this->get_parameter("MIN_BIG_ARMOR_RATIO").as_double();
@@ -283,8 +290,19 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     // 1. Convert ROS image message to OpenCV image
     cv::Mat image = cv_bridge::toCvCopy(msg, "bgr8")->image;
     // 2. Detect armors
-    if(is_openvino_ == true)
-    {
+    #ifdef USE_CUDA
+        if(cuda_detector_ != nullptr)
+        {
+            cuda_detector_->infer(image, detect_color_);
+            // 3. Updata robots
+            get_robots(decision_armors_, cuda_detector_->armors_);
+            allrobots_adjust(decision_armors_);
+        }
+        else
+        {
+            RCLCPP_ERROR(this->get_logger(), "Cuda detector is nullptr!");
+        }
+    #elif USE_OPENVINO
         if(openvino_detector_ != nullptr)
         {
             openvino_detector_->infer(image, detect_color_);
@@ -296,9 +314,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
         {
             RCLCPP_ERROR(this->get_logger(), "Openvino detector is nullptr!");
         }
-    }
-    else if(is_openvino_ == false)
-    {
+    #else
         if(lights_detector_ != nullptr)
         {
             std::vector<Armor> armors;
@@ -323,7 +339,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
         {
             RCLCPP_ERROR(this->get_logger(), "Light detector is nullptr!");
         }
-    }
+    #endif
 
     // 4. Decide which armor to shoot
     DecisionArmor decision_armor;
@@ -439,12 +455,11 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
     }
     if(is_debug_ == true)
     {
-        if(is_openvino_ == true)
-        {
+        #ifdef USE_CUDA
+            debug_deal(image, msg->header, cuda_detector_->armors_, decision_armor);
+        #elif USE_OPENVINO
             debug_deal(image, msg->header, openvino_detector_->armors_, decision_armor);
-        }
-        else if(is_openvino_ == false)
-        {
+        #else
             std::vector<Armor> armors;
             lights_detector_->detect(image);
             for(size_t i = 0;i<lights_detector_->armors_.size();i++)
@@ -460,7 +475,7 @@ void ArmorDetectorNode::image_callback(const sensor_msgs::msg::Image::SharedPtr 
                 armors.push_back(armor);
             }
             debug_deal(image, msg->header, armors, decision_armor);
-        }
+        #endif
     }
 }
 
@@ -468,30 +483,31 @@ void ArmorDetectorNode::test()
 {
     std::string model_path = "/home/zyicome/zyb/qianli_auto_aim/src/rm_armor_detector/model/four_points_armor/armor.onnx";
     //std::string model_path = "/home/zyicome/zyb/qianli_auto_aim/src/rm_armor_detector/model/inference_armor/armor.onnx";
-    OpenvinoDetector detector;
-    detector.set_onnx_model(model_path, "CPU");
-    cv::Mat input = cv::imread("/home/zyicome/zyb/pictures/armors/images/8.jpg");
-    detector.infer(input, detect_color_);
-    if(detector.armors_.size() > 0)
-    {
-        for(size_t i =0;i<detector.armors_.size();i++)
+    #ifdef USE_OPENVINO
+        OpenvinoDetector detector;
+        detector.set_onnx_model(model_path, "CPU");
+        cv::Mat input = cv::imread("/home/zyicome/zyb/pictures/armors/images/8.jpg");
+        detector.infer(input, detect_color_);
+        if(detector.armors_.size() > 0)
         {
-            // Convert vector<cv::Point2f> to vector<vector<cv::Point>>
-            std::vector<std::vector<cv::Point>> pts(1);
-            for (const auto& p : detector.armors_[i].four_points) {
-                pts[0].emplace_back(cv::Point(p.x, p.y));
+            for(size_t i =0;i<detector.armors_.size();i++)
+            {
+                // Convert vector<cv::Point2f> to vector<vector<cv::Point>>
+                std::vector<std::vector<cv::Point>> pts(1);
+                for (const auto& p : detector.armors_[i].four_points) {
+                    pts[0].emplace_back(cv::Point(p.x, p.y));
+                }
+                cv::polylines(input, pts, true, cv::Scalar(0, 255, 0), 2);
+                cv::putText(input, detector.armors_[i].name, cv::Point(detector.armors_[i].rect.x, detector.armors_[i].rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 3);
             }
-            cv::polylines(input, pts, true, cv::Scalar(0, 255, 0), 2);
-            cv::putText(input, detector.armors_[i].name, cv::Point(detector.armors_[i].rect.x, detector.armors_[i].rect.y), cv::FONT_HERSHEY_SIMPLEX, 0.7, cv::Scalar(0, 255, 0), 3);
+            cv::imshow("result", input);
+            cv::waitKey(0);
         }
-        cv::imshow("result", input);
-        cv::waitKey(0);
-    }
-    else
-    {
-        std::cout << "No armor detected!" << std::endl;
-    }
-
+        else
+        {
+            std::cout << "No armor detected!" << std::endl;
+        }
+    #endif
 }
 
 // 用于将给定的四元数表示的姿态（朝向）转换为偏航角（yaw）

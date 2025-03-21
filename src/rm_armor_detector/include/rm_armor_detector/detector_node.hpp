@@ -20,11 +20,19 @@
 #include "rm_msgs/msg/armor.hpp"
 #include "rm_msgs/msg/status.hpp"
 
-#include "openvino_detector.hpp"
 #include "pnp_solver.hpp"
 #include "lights_detector.hpp"
 #include "armor.hpp"
 #include "projection_yaw.hpp"
+
+#define USE_CUDA
+//#define USE_OPENVINO
+
+#ifdef USE_CUDA
+    #include "cuda_detector.hpp"
+#elif USE_OPENVINO
+    #include "openvino_detector.hpp"
+#endif
 
 namespace rm_armor_detector
 {
@@ -49,7 +57,6 @@ public:
     DecisionArmor decide_armor_shoot(const std::vector<DecisionArmor> &decision_armors);
 
     bool is_rune_;
-    bool is_openvino_;
     int is_debug_;
     int detect_color_;
     double MIN_BIG_ARMOR_RATIO_;
@@ -69,7 +76,12 @@ public:
     int last_decision_armor_id_;
     bool is_repeat;
 
-    std::shared_ptr<OpenvinoDetector> openvino_detector_;
+    #ifdef USE_CUDA
+        std::shared_ptr<CudaDetector> cuda_detector_;
+    #elif USE_OPENVINO
+        std::shared_ptr<OpenvinoDetector> openvino_detector_;
+    #endif
+
     std::shared_ptr<LightsDetector> lights_detector_;
     std::shared_ptr<PnpSolver> pnp_solver_;
     std::shared_ptr<ProjectionYaw> projection_yaw_;
