@@ -49,7 +49,7 @@ void ArmorDetectorNode::parameters_init()
         auto pkg_path = ament_index_cpp::get_package_share_directory("rm_armor_detector");
         auto model_path = pkg_path + "/model/four_points_armor/armor.onnx";
         openvino_detector_ = std::make_shared<OpenvinoDetector>();
-        openvino_detector_->set_onnx_model(model_path, "CPU");
+        openvino_detector_->set_onnx_model(model_path, "GPU");
     #else
         RCLCPP_INFO(this->get_logger(), "number detect mode!");
         lights_detector_ = initDetector();
