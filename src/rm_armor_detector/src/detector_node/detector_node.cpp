@@ -49,7 +49,7 @@ void ArmorDetectorNode::parameters_init()
         auto pkg_path = ament_index_cpp::get_package_share_directory("rm_armor_detector");
         auto model_path = pkg_path + "/model/four_points_armor/armor.onnx";
         openvino_detector_ = std::make_shared<OpenvinoDetector>();
-        openvino_detector_->set_onnx_model(model_path, "GPU");
+        openvino_detector_->set_onnx_model(model_path, "CPU");
     #else
         RCLCPP_INFO(this->get_logger(), "number detect mode!");
         lights_detector_ = initDetector();
@@ -143,6 +143,15 @@ std::unique_ptr<LightsDetector> ArmorDetectorNode::initDetector()
     a_params.min_large_center_distance = declare_parameter("armor.min_large_center_distance", 3.2);
     a_params.max_large_center_distance = declare_parameter("armor.max_large_center_distance", 5.5);
     a_params.max_angle = declare_parameter("armor.max_angle", 35.0);
+
+    if(detect_color_ == 0)
+    {
+        detect_color_ = 1;
+    }
+    else if(detect_color_ == 1)
+    {
+        detect_color_ = 0;
+    }
 
   auto detector = std::make_unique<LightsDetector>(binary_thres, detect_color_, l_params, a_params);
 

@@ -1,7 +1,7 @@
 /camera_node:
   ros__parameters:
     camera_info_url: package://rm_startup/config/rm_camera_info.yaml
-    exposure_time: 6000
+    exposure_time: 2000
     gain: 16.0
 
 /serial_driver:
@@ -19,7 +19,7 @@
 
     detect_color: 0 # 0: blue, 1: red
     priority_armors: [100,100,100,10,100,100,100,100,100]
-    ignore_armors: [1,2] # ignore armors with specific id
+    ignore_armors: [-1] # ignore armors with specific id
 
     binary_thres: 80
     light.min_ratio: 0.1
